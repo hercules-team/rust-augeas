@@ -2,8 +2,6 @@ extern crate libc;
 
 use self::libc::{c_void, c_char, c_int, c_uint};
 
-//use libc::size_t;
-
 #[allow(non_camel_case_types)]
 pub type augeas = *mut c_void;
 
