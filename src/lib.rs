@@ -1,6 +1,6 @@
 extern crate libc;
 
-use std::{ptr, string};
+use std::ptr;
 use std::mem::transmute;
 use libc::c_char;
 
@@ -33,7 +33,7 @@ impl Augeas {
     match (*return_value).is_null() {
       true => None,
       false => unsafe {
-        Some(string::raw::from_buf(transmute(*return_value)))
+        Some(String::from_raw_buf(transmute(*return_value)))
       }
     }
   }
@@ -49,7 +49,7 @@ impl Augeas {
     match (*return_value).is_null() {
       true => None,
       false => unsafe {
-        Some(string::raw::from_buf(transmute(*return_value)))
+        Some(String::from_raw_buf(transmute(*return_value)))
       }
     }
   }
@@ -64,7 +64,7 @@ impl Augeas {
 
       let matches_vec = Vec::from_fn(nmatches, |i| {
         let match_ptr = *matches_ptr.offset(i as int);
-        let str = string::raw::from_buf(transmute(match_ptr));
+        let str = String::from_raw_buf(transmute(match_ptr));
         libc::free(transmute(match_ptr));
         str
       });
