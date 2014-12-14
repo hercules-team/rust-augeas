@@ -81,6 +81,15 @@ impl Augeas {
             raw::aug_save(self.aug) >= 0
         }
     }
+
+    pub fn set(&mut self, path: &str, value: &str) -> bool {
+        let path_c = (*path).to_c_str();
+        let value_c = (*value).to_c_str();
+
+        unsafe {
+            0 <= raw::aug_set(self.aug, path_c.as_ptr(), value_c.as_ptr())
+        }
+    }
 }
 
 impl Drop for Augeas {
