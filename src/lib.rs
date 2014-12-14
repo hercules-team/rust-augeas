@@ -3,6 +3,7 @@ extern crate libc;
 use std::ptr;
 use std::mem::transmute;
 use libc::c_char;
+pub use raw::AugFlags;
 
 mod raw;
 
@@ -11,12 +12,12 @@ pub struct Augeas {
 }
 
 impl Augeas {
-  pub fn new(root: &str, loadpath: &str) -> Augeas {
+  pub fn new(root: &str, loadpath: &str, flags: AugFlags) -> Augeas {
     let root_c = (*root).to_c_str();
     let loadpath_c = (*loadpath).to_c_str();
 
     let augeas = unsafe {
-      raw::aug_init(root_c.as_ptr(), loadpath_c.as_ptr(), 0)
+      raw::aug_init(root_c.as_ptr(), loadpath_c.as_ptr(), flags as u32)
     };
 
     Augeas{aug: augeas}
@@ -86,7 +87,7 @@ impl Drop for Augeas {
 
 #[test]
 fn get_test() {
-  let aug = Augeas::new("", "");
+  let aug = Augeas::new("", "", AugFlags::None);
   let root_uid = aug.get("etc/passwd/root/uid").unwrap_or("unknown".to_string());
 
   assert!(root_uid.as_slice() == "0", "ID of root was {}", root_uid);
@@ -94,7 +95,7 @@ fn get_test() {
 
 #[test]
 fn label_test() {
-  let aug = Augeas::new("", "");
+  let aug = Augeas::new("", "", AugFlags::None);
   let root_name = aug.label("etc/passwd/root").unwrap_or("unknown".to_string());
 
   assert!(root_name.as_slice() == "root", "name of root was {}", root_name);
@@ -103,7 +104,7 @@ fn label_test() {
 
 #[test]
 fn matches_test() {
-  let aug = Augeas::new("", "");
+  let aug = Augeas::new("", "", AugFlags::None);
   
   let users = aug.matches("etc/passwd/*");
 
