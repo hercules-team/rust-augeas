@@ -42,5 +42,6 @@ extern {
     pub fn aug_get(aug: augeas, path: *const c_char, value: *mut *const c_char) -> c_int;
     pub fn aug_label(aug: augeas, path: *const c_char, label: *mut *const c_char) -> c_int;
     pub fn aug_close(aug: augeas);
+    pub fn aug_save(aug: augeas) -> c_int;
     pub fn aug_match(aug: augeas, path: *const c_char, matches: *mut *mut *mut c_char ) -> c_int;
 }

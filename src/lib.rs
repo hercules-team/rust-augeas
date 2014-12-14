@@ -75,6 +75,12 @@ impl Augeas {
             matches_vec
         }
     }
+
+    pub fn save(&mut self) -> bool {
+        unsafe {
+            raw::aug_save(self.aug) >= 0
+        }
+    }
 }
 
 impl Drop for Augeas {
