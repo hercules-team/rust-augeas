@@ -14,9 +14,8 @@ fn main() {
         let label = aug.label(node.as_slice());
         let value = aug.get(node.as_slice());
 
-        match (label, value) {
-            (Some(label), Some(value)) => println!("{} = {}", label, value),
-            _ => {}
+        if let (Some(label), Some(value)) = (label, value) {
+            println!("{} = {}", label, value)
         }
     }
 }
