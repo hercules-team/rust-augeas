@@ -4,6 +4,7 @@ use std::ptr;
 use std::mem::transmute;
 use libc::c_char;
 pub use raw::AugFlags;
+use std::c_str::ToCStr;
 
 mod raw;
 
@@ -13,8 +14,8 @@ pub struct Augeas {
 
 impl Augeas {
     pub fn new(root: &str, loadpath: &str, flags: AugFlags) -> Augeas {
-        let root_c = (*root).to_c_str();
-        let loadpath_c = (*loadpath).to_c_str();
+        let root_c = root.to_c_str();
+        let loadpath_c = loadpath.to_c_str();
 
         let augeas = unsafe {
             raw::aug_init(root_c.as_ptr(), loadpath_c.as_ptr(), flags as u32)
@@ -63,12 +64,12 @@ impl Augeas {
 
             let nmatches = raw::aug_match(self.aug, c_path.as_ptr(), transmute(&mut matches_ptr)) as uint;
 
-            let matches_vec = Vec::from_fn(nmatches, |i| {
+            let matches_vec = range(0, nmatches).map(|i| {
                 let match_ptr = *matches_ptr.offset(i as int);
                 let str = String::from_raw_buf(transmute(match_ptr));
                 libc::free(transmute(match_ptr));
                 str
-            });
+            }).collect::<Vec<String>>();
 
             libc::free(transmute(matches_ptr));
 
@@ -83,8 +84,8 @@ impl Augeas {
     }
 
     pub fn set(&mut self, path: &str, value: &str) -> bool {
-        let path_c = (*path).to_c_str();
-        let value_c = (*value).to_c_str();
+        let path_c = path.to_c_str();
+        let value_c = value.to_c_str();
 
         unsafe {
             0 <= raw::aug_set(self.aug, path_c.as_ptr(), value_c.as_ptr())
