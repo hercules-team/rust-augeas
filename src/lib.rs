@@ -72,7 +72,9 @@ impl Augeas {
                 str
             }).collect::<Vec<String>>();
 
-            libc::free(transmute(matches_ptr));
+            if !matches_ptr.is_null() {
+                libc::free(transmute(matches_ptr));
+            }
 
             matches_vec
         }
