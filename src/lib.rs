@@ -27,7 +27,7 @@ impl Augeas {
 
     pub fn get(&self, path: &str) -> Option<String> {
         let path_c = CString::from_slice(path.as_bytes());
-        let mut return_value = ptr::null();
+        let mut return_value: *const c_char = ptr::null();
 
         unsafe {
             raw::aug_get(self.aug, path_c.as_ptr(), &mut return_value);
@@ -43,7 +43,7 @@ impl Augeas {
 
     pub fn label(&self, path: &str) -> Option<String> {
         let path_c = CString::from_slice(path.as_bytes());
-        let mut return_value = ptr::null();
+        let mut return_value: *const c_char = ptr::null();
 
         unsafe {
             raw::aug_label(self.aug, path_c.as_ptr(), &mut return_value);
@@ -66,7 +66,7 @@ impl Augeas {
             let nmatches = raw::aug_match(self.aug, c_path.as_ptr(), transmute(&mut matches_ptr)) as usize;
 
             let matches_vec = range(0, nmatches).map(|i| {
-                let match_ptr = *matches_ptr.offset(i as isize);
+                let match_ptr: *mut c_char = *matches_ptr.offset(i as isize);
                 let str = String::from_utf8_lossy(c_str_to_bytes(transmute(&match_ptr))).into_owned();
                 libc::free(transmute(match_ptr));
                 str
