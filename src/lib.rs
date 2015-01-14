@@ -104,7 +104,7 @@ impl Drop for Augeas {
 
 #[test]
 fn get_test() {
-    let aug = Augeas::new("", "", AugFlags::None);
+    let aug = Augeas::new("tests/test_root", "", AugFlags::None);
     let root_uid = aug.get("etc/passwd/root/uid").unwrap_or("unknown".to_string());
 
     assert!(root_uid.as_slice() == "0", "ID of root was {}", root_uid);
@@ -112,7 +112,7 @@ fn get_test() {
 
 #[test]
 fn label_test() {
-    let aug = Augeas::new("", "", AugFlags::None);
+    let aug = Augeas::new("tests/test_root", "", AugFlags::None);
     let root_name = aug.label("etc/passwd/root").unwrap_or("unknown".to_string());
 
     assert!(root_name.as_slice() == "root", "name of root was {}", root_name);
@@ -121,7 +121,7 @@ fn label_test() {
 
 #[test]
 fn matches_test() {
-    let aug = Augeas::new("", "", AugFlags::None);
+    let aug = Augeas::new("tests/test_root", "", AugFlags::None);
     
     let users = aug.matches("etc/passwd/*");
 

@@ -3,7 +3,7 @@ extern crate augeas;
 use augeas::{Augeas,AugFlags};
 
 fn main() {
-    let aug = Augeas::new("", "", AugFlags::None);
+    let aug = Augeas::new("tests/test_root", "", AugFlags::None);
     let username = "root";
 
     println!("Infos about '{}':", username);
