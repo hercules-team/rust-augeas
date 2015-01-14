@@ -63,7 +63,7 @@ impl Augeas {
         unsafe {
             let mut matches_ptr: *mut *mut c_char = ptr::null_mut();
 
-            let nmatches = raw::aug_match(self.aug, c_path.as_ptr(), transmute(&mut matches_ptr)) as usize;
+            let nmatches = raw::aug_match(self.aug, c_path.as_ptr(), &mut matches_ptr) as usize;
 
             let matches_vec = range(0, nmatches).map(|i| {
                 let match_ptr: *mut c_char = *matches_ptr.offset(i as isize);
