@@ -2,9 +2,10 @@ extern crate libc;
 
 use std::ptr;
 use std::mem::transmute;
+use std::ffi::CString;
+use std::ffi::c_str_to_bytes;
 use libc::c_char;
 pub use raw::AugFlags;
-use std::c_str::ToCStr;
 
 mod raw;
 
@@ -14,8 +15,8 @@ pub struct Augeas {
 
 impl Augeas {
     pub fn new(root: &str, loadpath: &str, flags: AugFlags) -> Augeas {
-        let root_c = root.to_c_str();
-        let loadpath_c = loadpath.to_c_str();
+        let root_c = CString::from_slice(root.as_bytes());
+        let loadpath_c = CString::from_slice(loadpath.as_bytes());
 
         let augeas = unsafe {
             raw::aug_init(root_c.as_ptr(), loadpath_c.as_ptr(), flags as u32)
@@ -25,48 +26,48 @@ impl Augeas {
     }
 
     pub fn get(&self, path: &str) -> Option<String> {
-        let path_c = path.to_c_str();
-        let return_value = &mut ptr::null();
+        let path_c = CString::from_slice(path.as_bytes());
+        let mut return_value = ptr::null();
 
         unsafe {
-            raw::aug_get(self.aug, path_c.as_ptr(), return_value);
+            raw::aug_get(self.aug, path_c.as_ptr(), &mut return_value);
         }
 
-        match (*return_value).is_null() {
+        match return_value.is_null() {
             true => None,
             false => unsafe {
-                Some(String::from_raw_buf(transmute(*return_value)))
+                Some(String::from_utf8_lossy(c_str_to_bytes(&return_value)).into_owned())
             }
         }
     }
 
     pub fn label(&self, path: &str) -> Option<String> {
-        let path_c = path.to_c_str();
-        let return_value = &mut ptr::null();
+        let path_c = CString::from_slice(path.as_bytes());
+        let mut return_value = ptr::null();
 
         unsafe {
-            raw::aug_label(self.aug, path_c.as_ptr(), return_value);
+            raw::aug_label(self.aug, path_c.as_ptr(), &mut return_value);
         }
 
-        match (*return_value).is_null() {
+        match return_value.is_null() {
             true => None,
             false => unsafe {
-                Some(String::from_raw_buf(transmute(*return_value)))
+                Some(String::from_utf8_lossy(c_str_to_bytes(&return_value)).into_owned())
             }
         }
     }
 
     pub fn matches(&self, path: &str) -> Vec<String> {
-        let c_path = path.to_c_str();
+        let c_path = CString::from_slice(path.as_bytes());
 
         unsafe {
             let mut matches_ptr: *mut *mut c_char = ptr::null_mut();
 
-            let nmatches = raw::aug_match(self.aug, c_path.as_ptr(), transmute(&mut matches_ptr)) as uint;
+            let nmatches = raw::aug_match(self.aug, c_path.as_ptr(), transmute(&mut matches_ptr)) as usize;
 
             let matches_vec = range(0, nmatches).map(|i| {
-                let match_ptr = *matches_ptr.offset(i as int);
-                let str = String::from_raw_buf(transmute(match_ptr));
+                let match_ptr = *matches_ptr.offset(i as isize);
+                let str = String::from_utf8_lossy(c_str_to_bytes(transmute(&match_ptr))).into_owned();
                 libc::free(transmute(match_ptr));
                 str
             }).collect::<Vec<String>>();
@@ -84,8 +85,8 @@ impl Augeas {
     }
 
     pub fn set(&mut self, path: &str, value: &str) -> bool {
-        let path_c = path.to_c_str();
-        let value_c = value.to_c_str();
+        let path_c = CString::from_slice(path.as_bytes());
+        let value_c = CString::from_slice(value.as_bytes());
 
         unsafe {
             0 <= raw::aug_set(self.aug, path_c.as_ptr(), value_c.as_ptr())
