@@ -66,8 +66,8 @@ impl Augeas {
             let nmatches = raw::aug_match(self.aug, c_path.as_ptr(), &mut matches_ptr) as usize;
 
             let matches_vec = range(0, nmatches).map(|i| {
-                let match_ptr: *mut c_char = *matches_ptr.offset(i as isize);
-                let str = String::from_utf8_lossy(c_str_to_bytes(transmute(&match_ptr))).into_owned();
+                let match_ptr: *const c_char = transmute(*matches_ptr.offset(i as isize));
+                let str = String::from_utf8_lossy(c_str_to_bytes(&match_ptr)).into_owned();
                 libc::free(transmute(match_ptr));
                 str
             }).collect::<Vec<String>>();
