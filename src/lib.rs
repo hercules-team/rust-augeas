@@ -127,6 +127,6 @@ fn matches_test() {
 
     println!("Users in passwd:");
     for user in users.iter() {
-        println!("{}", user);
+        println!("{}", aug.label(user.as_slice()).unwrap_or("unknown".to_string()).as_slice());
     }
 }
