@@ -7,7 +7,7 @@ pub type augeas = *mut c_void;
 
 // https://github.com/hercules-team/augeas/blob/master/src/augeas.h
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy,Clone)]
 pub enum AugFlags {
     None = 0,
     /// Keep the original file with a .augsave extension
