@@ -7,16 +7,16 @@ use self::libc::{c_void, c_char, c_int, c_uint};
 #[derive(Copy,Clone)]
 pub enum AugFlag {
     None = 0,
-    SaveBackup = (1 << 0),
-    SaveNewFile = (1 << 1),
-    TypeCheck = (1 << 2),
-    NoStdinc  = (1 << 3),
-    SaveNoop = (1 << 4),
-    NoLoad = (1 << 5),
-    NoModlAutoload = (1 << 6),
-    EnableSpan = (1 << 7),
-    NoErrClose = (1 << 8),
-    TraceModuleLoading = (1 << 9)
+    SaveBackup = 1 << 0,
+    SaveNewFile = 1 << 1,
+    TypeCheck = 1 << 2,
+    NoStdinc  = 1 << 3,
+    SaveNoop = 1 << 4,
+    NoLoad = 1 << 5,
+    NoModlAutoload = 1 << 6,
+    EnableSpan = 1 << 7,
+    NoErrClose = 1 << 8,
+    TraceModuleLoading = 1 << 9
 }
 
 impl std::ops::BitOr for AugFlag {
