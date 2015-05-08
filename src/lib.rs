@@ -1,20 +1,19 @@
-#![feature(libc)]
 extern crate libc;
-
+extern crate augeas_sys;
+use augeas_sys as raw;
 use std::ptr;
 use std::mem::transmute;
 use std::ffi::{CString, CStr, NulError};
 use libc::c_char;
-pub use raw::AugFlags;
 
-mod raw;
+pub use augeas_sys::AugFlag;
 
 pub struct Augeas {
-    aug: raw::augeas
+    aug: raw::augeas_t
 }
 
 impl Augeas {
-    pub fn new(root: &str, loadpath: &str, flags: AugFlags) -> Result<Augeas, NulError> {
+    pub fn new(root: &str, loadpath: &str, flags: AugFlag) -> Result<Augeas, NulError> {
         let root_c = try!(CString::new(root));
         let loadpath_c = try!(CString::new(loadpath));
 
@@ -107,7 +106,7 @@ impl Drop for Augeas {
 
 #[test]
 fn get_test() {
-    let aug = Augeas::new("tests/test_root", "", AugFlags::None).unwrap();
+    let aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
     let root_uid = aug.get("etc/passwd/root/uid").unwrap().unwrap_or("unknown".to_string());
 
     assert!(&root_uid == "0", "ID of root was {}", root_uid);
@@ -115,7 +114,7 @@ fn get_test() {
 
 #[test]
 fn label_test() {
-    let aug = Augeas::new("tests/test_root", "", AugFlags::None).unwrap();
+    let aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
     let root_name = aug.label("etc/passwd/root").unwrap().unwrap_or("unknown".to_string());
 
     assert!(&root_name == "root", "name of root was {}", root_name);
@@ -124,7 +123,7 @@ fn label_test() {
 
 #[test]
 fn matches_test() {
-    let aug = Augeas::new("tests/test_root", "", AugFlags::None).unwrap();
+    let aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
     
     let users = aug.matches("etc/passwd/*").unwrap();
 
