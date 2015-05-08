@@ -25,7 +25,27 @@ impl std::ops::BitOr for AugFlag {
     fn bitor(self, other: AugFlag) -> c_uint {
         self as c_uint | other as c_uint
     }
-} 
+}
+
+#[repr(C)]
+#[derive(Copy,Clone)]
+pub enum AugError {
+    NoError,
+    NoMem,
+    Internal,
+    PathExpr,
+    NoMatch,
+    ManyMatches,
+    Syntax,
+    NoLens,
+    MultipleTransforms,
+    NoSpan,
+    MoveDescendant,
+    CMDRun,
+    BadArg,
+    Label,
+    CopyDescendant
+}
 
 /// Opaque augeas type
 #[allow(non_camel_case_types)]
