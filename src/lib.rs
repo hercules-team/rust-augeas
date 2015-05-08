@@ -26,7 +26,7 @@ impl Augeas {
 
     pub fn get(&self, path: &str) -> Result<Option<String>, NulError> {
         let path_c = try!(CString::new(path));
-        let mut return_value: *const c_char = ptr::null();
+        let mut return_value: *mut c_char = ptr::null_mut();
 
         unsafe {
             raw::aug_get(self.aug, path_c.as_ptr(), &mut return_value);
