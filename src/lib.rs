@@ -12,6 +12,20 @@ pub struct Augeas {
     aug: raw::augeas_t
 }
 
+/// Make a String from s; s must not be null
+fn to_string(s : * const c_char) -> String {
+    let s = unsafe { CStr::from_ptr(s) };
+    String::from_utf8_lossy(s.to_bytes()).into_owned()
+}
+
+fn to_option(s : * const c_char) -> Option<String> {
+    if s.is_null() {
+        None
+    } else {
+        Some(to_string(s))
+    }
+}
+
 impl Augeas {
     pub fn new(root: &str, loadpath: &str, flags: AugFlag) -> Result<Augeas, NulError> {
         let root_c = try!(CString::new(root));
@@ -32,13 +46,7 @@ impl Augeas {
             raw::aug_get(self.aug, path_c.as_ptr(), &mut return_value);
         }
 
-        Ok(match return_value.is_null() {
-            true => None,
-            false => unsafe {
-                let return_value = CStr::from_ptr(return_value);
-                Some(String::from_utf8_lossy(return_value.to_bytes()).into_owned())
-            }
-        })
+        Ok(to_option(return_value))
     }
 
     pub fn label(&self, path: &str) -> Result<Option<String>, NulError> {
@@ -49,13 +57,7 @@ impl Augeas {
             raw::aug_label(self.aug, path_c.as_ptr(), &mut return_value);
         }
 
-        Ok(match return_value.is_null() {
-            true => None,
-            false => unsafe {
-                let return_value = CStr::from_ptr(return_value);
-                Some(String::from_utf8_lossy(return_value.to_bytes()).into_owned())
-            }
-        })
+        Ok(to_option(return_value))
     }
 
     pub fn matches(&self, path: &str) -> Result<Vec<String>, NulError> {
@@ -68,8 +70,7 @@ impl Augeas {
 
             let matches_vec = (0 .. nmatches).map(|i| {
                 let match_ptr: *const c_char = transmute(*matches_ptr.offset(i as isize));
-                let match_result = CStr::from_ptr(match_ptr);
-                let str = String::from_utf8_lossy(match_result.to_bytes()).into_owned();
+                let str = to_string(match_ptr);
                 libc::free(transmute(match_ptr));
                 str
             }).collect::<Vec<String>>();
@@ -124,7 +125,7 @@ fn label_test() {
 #[test]
 fn matches_test() {
     let aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
-    
+
     let users = aug.matches("etc/passwd/*").unwrap();
 
     println!("Users in passwd:");
