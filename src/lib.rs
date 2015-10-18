@@ -44,7 +44,12 @@ pub enum AugError {
     CMDRun,
     BadArg,
     Label,
-    CopyDescendant
+    CopyDescendant,
+    // Not an error returned from Augeas but one we need to take care of as
+    // part of the bindings. To make sure we don't change the code for this
+    // as Augeas introduces new errors, move this to a high integer
+    NulString = 4096
+}
 }
 
 /// Opaque augeas type
