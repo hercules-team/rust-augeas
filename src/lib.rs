@@ -28,7 +28,7 @@ impl std::ops::BitOr for AugFlag {
 }
 
 #[repr(C)]
-#[derive(Copy,Clone)]
+#[derive(Copy,Clone,PartialEq,Debug)]
 pub enum AugError {
     NoError,
     NoMem,
