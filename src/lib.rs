@@ -95,7 +95,7 @@ extern {
     pub fn aug_transform(aug: augeas_t, lens: *const c_char, file: *const c_char, excl: c_int) -> c_int;
     pub fn aug_srun(aug: augeas_t, out: *mut FILE, text: *const c_char) -> c_int;
     pub fn aug_close(aug: augeas_t);
-    pub fn aug_error(aug: augeas_t) -> c_int;
+    pub fn aug_error(aug: augeas_t) -> AugError;
     pub fn aug_error_message(aug: augeas_t) -> *const c_char;
     pub fn aug_error_minor_message(aug: augeas_t) -> *const c_char;
     pub fn aug_error_details(aug: augeas_t) -> *const c_char;
