@@ -50,6 +50,9 @@ pub enum AugError {
     // as Augeas introduces new errors, move this to a high integer
     NulString = 4096
 }
+
+impl Default for AugError {
+    fn default() -> AugError { AugError::NoError }
 }
 
 /// Opaque augeas type
