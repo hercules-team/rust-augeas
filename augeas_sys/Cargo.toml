@@ -1,0 +1,11 @@
+[package]
+name = "augeas_sys"
+version = "0.0.1"
+authors = ["panicbit <panicbit@users.noreply.github.com>"]
+description = "Low level bindings for augeas"
+license = "MIT"
+keywords = ["augeas", "bindings"]
+repository = "https://github.com/panicbit/augeas_sys"
+
+[dependencies]
+libc = "*"
