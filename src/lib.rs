@@ -8,7 +8,13 @@ use libc::c_char;
 use std::convert::From;
 
 use std::fmt;
-use std::error::Error;
+
+pub mod error;
+pub use error::Error;
+use error::AugeasError;
+
+mod util;
+use util::ptr_to_string;
 
 pub use augeas_sys::AugFlag;
 
@@ -16,82 +22,16 @@ pub struct Augeas {
     aug: raw::augeas_t
 }
 
-#[derive(Clone, PartialEq,Debug,Default)]
-pub struct AugError {
-    code          : raw::AugError,
-    message       : Option<String>,
-    minor_message : Option<String>,
-    details       : Option<String>
-}
-
-impl Error for AugError {
-    fn description(&self) -> &str {
-        match self.message {
-            None => "No description",
-            Some(ref s) => s
-        }
-    }
-}
-
-fn maybe_write(f: &mut fmt::Formatter, opt : &Option<String>) -> fmt::Result {
-    match *opt {
-        Some(ref s) => write!(f, "      {}\n", s),
-        None => Ok(())
-    }
-}
-
-impl fmt::Display for AugError {
-    // Write
-    //   augeas error:{code}:{message}
-    //                {minor_message}
-    //                {details}
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let m = self.message.as_ref().map(String::as_ref).unwrap_or("");
-        write!(f, "augeas error:{:?}:{}\n", self.code, m).
-            and(maybe_write(f, &self.minor_message)).
-            and(maybe_write(f, &self.details))
-    }
-}
-
-pub type Result<T> = std::result::Result<T, AugError>;
-
-impl From<NulError> for AugError {
-    fn from(_ : NulError) -> AugError {
-        AugError { code : raw::AugError::NulString,
-                   message : Some(String::from("Rust string contains NUL")),
-                   .. Default::default() }
-    }
-}
-
-/// Make a String from s; s must not be null
-fn to_string(s : * const c_char) -> String {
-    let s = unsafe { CStr::from_ptr(s) };
-    String::from_utf8_lossy(s.to_bytes()).into_owned()
-}
-
-fn to_option(s : * const c_char) -> Option<String> {
-    if s.is_null() {
-        None
-    } else {
-        Some(to_string(s))
-    }
-}
+pub type Result<T> = std::result::Result<T, Error>;
 
 impl Augeas {
     fn make_error<T>(&self) -> Result<T> {
-        let err = unsafe { raw::aug_error(self.aug) };
-        let msg = to_option(unsafe { raw::aug_error_message(self.aug) });
-        let mmsg = to_option(unsafe { raw::aug_error_minor_message(self.aug) });
-        let det = to_option(unsafe { raw::aug_error_details(self.aug) });
-        Err(AugError { code : err,
-                       message : msg,
-                       minor_message : mmsg,
-                       details : det })
+        Err(Error::from(self))
     }
 
     fn make_result<T>(&self, v : T) -> Result<T> {
         let err = unsafe { raw::aug_error(self.aug) };
-        if err == raw::AugError::NoError {
+        if err == raw::ErrorCode::NoError {
             Ok(v)
         } else {
             self.make_error()
@@ -106,9 +46,8 @@ impl Augeas {
             raw::aug_init(root_c.as_ptr(), loadpath_c.as_ptr(), flags as u32)
         };
         if augeas.is_null() {
-            let m = String::from("Failed to initialize Augeas");
-            Err(AugError { code : raw::AugError::NoMem, message : Some(m),
-                           .. Default::default() })
+            let message = String::from("Failed to initialize Augeas");
+            Err(Error::Augeas(AugeasError::new_no_mem(message)))
         } else {
             Ok(Augeas{aug: augeas})
         }
@@ -120,7 +59,7 @@ impl Augeas {
 
         unsafe { raw::aug_get(self.aug, path_c.as_ptr(), &mut return_value) };
 
-        self.make_result(to_option(return_value))
+        self.make_result(unsafe { ptr_to_string(return_value) })
     }
 
     pub fn label(&self, path: &str) -> Result<Option<String>> {
@@ -131,7 +70,7 @@ impl Augeas {
             raw::aug_label(self.aug, path_c.as_ptr(), &mut return_value)
         };
 
-        self.make_result(to_option(return_value))
+        self.make_result(unsafe { ptr_to_string(return_value) })
     }
 
     pub fn matches(&self, path: &str) -> Result<Vec<String>> {
@@ -147,7 +86,7 @@ impl Augeas {
             }
             let matches_vec = (0 .. nmatches).map(|i| {
                 let match_ptr: *const c_char = transmute(*matches_ptr.offset(i as isize));
-                let str = to_string(match_ptr);
+                let str = ptr_to_string(match_ptr).unwrap();
                 libc::free(transmute(match_ptr));
                 str
             }).collect::<Vec<String>>();
@@ -193,7 +132,7 @@ fn get_test() {
 
     let many = aug.get("etc/passwd/*");
     assert!(many.is_err());
-    assert!(many.err().unwrap().code == raw::AugError::ManyMatches)
+    assert!(many.err().unwrap().code == raw::ErrorCode::ManyMatches)
 }
 
 #[test]
@@ -223,7 +162,7 @@ fn error_test() {
     let garbled = aug.matches("/invalid[");
     assert!(garbled.is_err());
     let err = garbled.err().unwrap();
-    assert!(err.code == raw::AugError::PathExpr);
+    assert!(err.code == raw::ErrorCode::PathExpr);
     println!("{}", err);
     assert!(err.message.unwrap() == "Invalid path expression");
     assert!(err.minor_message.unwrap() == "illegal string literal");
