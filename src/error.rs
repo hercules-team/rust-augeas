@@ -12,10 +12,10 @@ pub enum Error {
 
 #[derive(Clone,PartialEq,Eq,Debug,Default)]
 pub struct AugeasError {
-    code          : raw::ErrorCode,
-    message       : Option<String>,
-    minor_message : Option<String>,
-    details       : Option<String>
+    pub code          : raw::ErrorCode,
+    pub message       : Option<String>,
+    pub minor_message : Option<String>,
+    pub details       : Option<String>
 }
 
 impl AugeasError {

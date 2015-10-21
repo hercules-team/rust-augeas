@@ -131,8 +131,12 @@ fn get_test() {
     assert!(nothing.ok().unwrap().is_none());
 
     let many = aug.get("etc/passwd/*");
-    assert!(many.is_err());
-    assert!(many.err().unwrap().code == raw::ErrorCode::ManyMatches)
+
+    if let Err(Error::Augeas(err)) = many {
+        assert!(err.code == raw::ErrorCode::ManyMatches)
+    } else {
+        panic!("Unexpected value: {:?}", many)
+    }
 }
 
 #[test]
@@ -160,11 +164,13 @@ fn matches_test() {
 fn error_test() {
     let aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
     let garbled = aug.matches("/invalid[");
-    assert!(garbled.is_err());
-    let err = garbled.err().unwrap();
-    assert!(err.code == raw::ErrorCode::PathExpr);
-    println!("{}", err);
-    assert!(err.message.unwrap() == "Invalid path expression");
-    assert!(err.minor_message.unwrap() == "illegal string literal");
-    assert!(err.details.unwrap() == "/invalid[|=|")
+
+    if let Err(Error::Augeas(err)) = garbled {
+        assert!(err.code == raw::ErrorCode::PathExpr);
+        assert!(err.message.unwrap() == "Invalid path expression");
+        assert!(err.minor_message.unwrap() == "illegal string literal");
+        assert!(err.details.unwrap() == "/invalid[|=|")
+    } else {
+        panic!("Unexpected value: {:?}", garbled)
+    }
 }
