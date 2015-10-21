@@ -3,11 +3,9 @@ extern crate augeas_sys;
 use augeas_sys as raw;
 use std::ptr;
 use std::mem::transmute;
-use std::ffi::{CString, CStr, NulError};
+use std::ffi::CString;
 use libc::c_char;
 use std::convert::From;
-
-use std::fmt;
 
 pub mod error;
 pub use error::Error;
