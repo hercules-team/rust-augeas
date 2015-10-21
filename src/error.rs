@@ -4,12 +4,13 @@ use ::Augeas;
 use ::util::ptr_to_string;
 use augeas_sys as raw;
 
+#[derive(Clone,PartialEq,Debug)]
 pub enum Error {
     Augeas(AugeasError),
     Nul(NulError)
 }
 
-#[derive(Clone,PartialEq,Debug,Default)]
+#[derive(Clone,PartialEq,Eq,Debug,Default)]
 pub struct AugeasError {
     code          : raw::ErrorCode,
     message       : Option<String>,

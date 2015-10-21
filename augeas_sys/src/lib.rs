@@ -5,7 +5,7 @@ use self::libc::{c_void, c_char, c_int, c_uint, FILE};
 
 
 #[repr(C)]
-#[derive(Copy,Clone)]
+#[derive(Copy,Clone,PartialEq,Eq,Debug)]
 pub enum AugFlag {
     None = 0,
     SaveBackup = 1 << 0,
@@ -28,7 +28,7 @@ impl std::ops::BitOr for AugFlag {
 }
 
 #[repr(C)]
-#[derive(Copy,Clone,PartialEq,Debug)]
+#[derive(Copy,Clone,PartialEq,Eq,Debug)]
 pub enum ErrorCode {
     NoError,
     NoMem,
