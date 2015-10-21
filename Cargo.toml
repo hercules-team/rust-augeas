@@ -8,4 +8,4 @@ authors = ["panicbit <panicbit@users.noreply.github.com>"]
 libc = "*"
 
 [dependencies.augeas_sys]
-git = "https://github.com/panicbit/augeas_sys"
+path = "augeas_sys/"
