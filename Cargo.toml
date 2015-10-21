@@ -2,7 +2,12 @@
 
 name = "augeas"
 version = "0.0.1"
-authors = ["panicbit <panicbit@users.noreply.github.com>"]
+authors = ["panicbit <panicbit.dev@gmail.com>"]
+description = "High level bindings for augeas"
+license = "MIT"
+keywords = ["augeas", "bindings"]
+repository = "https://github.com/panicbit/rust-augeas"
+
 
 [dependencies]
 libc = "*"
