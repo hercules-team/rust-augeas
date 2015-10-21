@@ -19,7 +19,7 @@ use util::ptr_to_string;
 pub use augeas_sys::AugFlag;
 
 pub struct Augeas {
-    aug: raw::augeas_t
+    ptr: raw::augeas_t
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -30,7 +30,7 @@ impl Augeas {
     }
 
     fn make_result<T>(&self, v : T) -> Result<T> {
-        let err = unsafe { raw::aug_error(self.aug) };
+        let err = unsafe { raw::aug_error(self.ptr) };
         if err == raw::ErrorCode::NoError {
             Ok(v)
         } else {
@@ -49,7 +49,9 @@ impl Augeas {
             let message = String::from("Failed to initialize Augeas");
             Err(Error::Augeas(AugeasError::new_no_mem(message)))
         } else {
-            Ok(Augeas{aug: augeas})
+            Ok(Augeas{
+                ptr: augeas
+            })
         }
     }
 
@@ -57,7 +59,7 @@ impl Augeas {
         let path_c = try!(CString::new(path));
         let mut return_value: *mut c_char = ptr::null_mut();
 
-        unsafe { raw::aug_get(self.aug, path_c.as_ptr(), &mut return_value) };
+        unsafe { raw::aug_get(self.ptr, path_c.as_ptr(), &mut return_value) };
 
         self.make_result(unsafe { ptr_to_string(return_value) })
     }
@@ -67,7 +69,7 @@ impl Augeas {
         let mut return_value: *const c_char = ptr::null();
 
         unsafe {
-            raw::aug_label(self.aug, path_c.as_ptr(), &mut return_value)
+            raw::aug_label(self.ptr, path_c.as_ptr(), &mut return_value)
         };
 
         self.make_result(unsafe { ptr_to_string(return_value) })
@@ -79,7 +81,7 @@ impl Augeas {
         unsafe {
             let mut matches_ptr: *mut *mut c_char = ptr::null_mut();
 
-            let nmatches = raw::aug_match(self.aug, c_path.as_ptr(), &mut matches_ptr);
+            let nmatches = raw::aug_match(self.ptr, c_path.as_ptr(), &mut matches_ptr);
 
             if nmatches < 0 {
                 return self.make_error()
@@ -98,7 +100,7 @@ impl Augeas {
     }
 
     pub fn save(&mut self) -> Result<()> {
-        unsafe { raw::aug_save(self.aug) };
+        unsafe { raw::aug_save(self.ptr) };
         self.make_result(())
     }
 
@@ -106,7 +108,7 @@ impl Augeas {
         let path_c = try!(CString::new(path.as_bytes()));
         let value_c = try!(CString::new(value.as_bytes()));
 
-        unsafe { raw::aug_set(self.aug, path_c.as_ptr(), value_c.as_ptr()) };
+        unsafe { raw::aug_set(self.ptr, path_c.as_ptr(), value_c.as_ptr()) };
         self.make_result(())
     }
 }
@@ -114,7 +116,7 @@ impl Augeas {
 impl Drop for Augeas {
     fn drop(&mut self) {
         unsafe {
-            raw::aug_close(self.aug);
+            raw::aug_close(self.ptr);
         }
     }
 }

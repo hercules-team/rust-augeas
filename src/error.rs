@@ -74,10 +74,10 @@ impl From<NulError> for Error {
 
 impl <'a> From<&'a Augeas> for Error {
     fn from(aug: &'a Augeas) -> Error {
-        let err = unsafe { raw::aug_error(aug.aug) };
-        let msg = unsafe { ptr_to_string(raw::aug_error_message(aug.aug)) };
-        let mmsg = unsafe { ptr_to_string(raw::aug_error_minor_message(aug.aug)) };
-        let det = unsafe { ptr_to_string(raw::aug_error_details(aug.aug)) };
+        let err = unsafe { raw::aug_error(aug.ptr) };
+        let msg = unsafe { ptr_to_string(raw::aug_error_message(aug.ptr)) };
+        let mmsg = unsafe { ptr_to_string(raw::aug_error_minor_message(aug.ptr)) };
+        let det = unsafe { ptr_to_string(raw::aug_error_details(aug.ptr)) };
         Error::Augeas(AugeasError {
             code : err,
             message : msg,
