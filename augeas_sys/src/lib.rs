@@ -1,4 +1,4 @@
-//! See [augeas.h](https://github.com/hercules-team/augeas/blob/release-1.3.0/src/augeas.h) for details
+//! See [augeas.h](https://github.com/hercules-team/augeas/blob/release-1.4.0/src/augeas.h) for details
 extern crate libc;
 
 use self::libc::{c_void, c_char, c_int, c_uint, FILE};
