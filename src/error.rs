@@ -10,6 +10,24 @@ pub enum Error {
     Nul(NulError)
 }
 
+impl ::std::error::Error for Error {
+    fn description(&self) -> &str {
+        match *self {
+            Error::Augeas(ref err) => err.description(),
+            Error::Nul(ref err) => err.description()
+        }
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Error::Augeas(ref err) => err.fmt(f),
+            Error::Nul(ref err) => err.fmt(f)
+        }
+    }
+}
+
 #[derive(Clone,PartialEq,Eq,Debug,Default)]
 pub struct AugeasError {
     pub code          : raw::ErrorCode,
@@ -54,15 +72,6 @@ impl fmt::Display for AugeasError {
         write!(f, "augeas error:{:?}:{}\n", self.code, m).
             and(maybe_write(f, &self.minor_message)).
             and(maybe_write(f, &self.details))
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::Augeas(ref err) => err.fmt(f),
-            Error::Nul(ref err) => err.fmt(f)
-        }
     }
 }
 
