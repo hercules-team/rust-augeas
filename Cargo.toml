@@ -14,3 +14,4 @@ libc = "0.2.4"
 
 [dependencies.augeas_sys]
 path = "augeas_sys/"
+version = "0.0.2"
