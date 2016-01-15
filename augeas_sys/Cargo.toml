@@ -1,6 +1,6 @@
 [package]
 name = "augeas_sys"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["panicbit <panicbit.dev@gmail.com>"]
 description = "Low level bindings for augeas"
 license = "MIT"
