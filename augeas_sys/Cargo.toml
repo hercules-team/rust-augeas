@@ -8,4 +8,4 @@ keywords = ["augeas", "bindings"]
 repository = "https://github.com/panicbit/augeas_sys"
 
 [dependencies]
-libc = "*"
+libc = "0.2.4"
