@@ -161,6 +161,25 @@ impl Augeas {
         unsafe { raw::aug_mv(self.ptr, src.as_ptr(), dst.as_ptr()) };
         self.make_result(())
     }
+
+    pub fn defvar(&mut self, name: &str, expr: &str) -> Result<()> {
+        let name = CString::new(name)?;
+        let expr = CString::new(expr)?;
+
+        unsafe { raw::aug_defvar(self.ptr, name.as_ptr(), expr.as_ptr()) };
+        self.make_result(())
+    }
+
+    pub fn defnode(&mut self, name: &str, expr: &str, value: &str) -> Result<bool> {
+        let name = CString::new(name)?;
+        let expr = CString::new(expr)?;
+        let value = CString::new(value)?;
+        let mut cr : i32 = 0;
+
+        unsafe { raw::aug_defnode(self.ptr, name.as_ptr(), expr.as_ptr(),
+                                  value.as_ptr(), &mut cr) };
+        self.make_result(cr == 1)
+    }
 }
 
 impl Drop for Augeas {
@@ -247,6 +266,30 @@ fn mv_test() {
     aug.mv("etc/passwd", "etc/other").unwrap();
     assert_eq!(0, aug.count("etc/passwd").unwrap());
     assert_eq!(1, aug.count("etc/other").unwrap());
+}
+
+#[test]
+fn defvar_test() {
+    let mut aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
+
+    aug.defvar("x", "etc/passwd/*").unwrap();
+    let n = aug.count("$x").unwrap();
+
+    assert_eq!(9, n);
+}
+
+#[test]
+fn defnode_test() {
+    let mut aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
+
+    let created = aug.defnode("y", "etc/notthere", "there").unwrap();
+    assert!(created);
+
+    let there = aug.get("$y").unwrap();
+    assert_eq!("there", there.expect("failed to get etc/notthere"));
+
+    let created = aug.defnode("z", "etc/passwd", "there").unwrap();
+    assert!(! created);
 }
 
 #[test]
