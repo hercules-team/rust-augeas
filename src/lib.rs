@@ -177,6 +177,12 @@ impl Augeas {
                              value.as_ptr(), &mut cr) };
         self.make_result(cr == 1)
     }
+
+    pub fn load(&mut self) -> Result<()> {
+        unsafe { aug_load(self.ptr) };
+        self.make_result(())
+    }
+
 }
 
 impl Augeas {
@@ -305,6 +311,16 @@ fn defnode_test() {
 
     let created = aug.defnode("z", "etc/passwd", "there").unwrap();
     assert!(! created);
+}
+
+#[test]
+fn load_test() {
+    let mut aug = Augeas::init("tests/test_root", "", Flags::None).unwrap();
+
+    aug.set("etc/passwd/root/uid", "42").unwrap();
+    aug.load().unwrap();
+    let uid = aug.get("etc/passwd/root/uid").unwrap();
+    assert_eq!("0", uid.expect("expected value for root/uid"));
 }
 
 #[test]
