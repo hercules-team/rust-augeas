@@ -280,6 +280,13 @@ impl Augeas {
         self.make_result(())
     }   
 
+    pub fn rename(&mut self, src: &str, lbl: &str) -> Result<()> {
+        let src = CString::new(src)?;
+        let lbl = CString::new(lbl)?;
+
+        unsafe { raw::aug_rename(self.ptr, src.as_ptr(), lbl.as_ptr()) };
+        self.make_result(())
+    }
 }
 
 impl Drop for Augeas {
@@ -450,6 +457,19 @@ fn store_retrieve_test() {
     aug.set("/text/in", "alex:invalid passwd entry").unwrap();
     let err = aug.text_store("Passwd.lns", "/text/in", "/stored").err().unwrap();
     assert_eq!("parse error of kind parse_failed", format!("{}", err));
+}
+
+#[test]
+fn rename_test() {
+    let mut aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
+
+    aug.rename("etc/passwd/root", "ruth").unwrap();
+
+    let ruth = aug.get("etc/passwd/ruth/uid").unwrap().unwrap();
+    assert_eq!("0", ruth);
+
+    let root = aug.get("etc/passwd/root/uid").unwrap();
+    assert!(root.is_none());
 }
 
 #[test]
