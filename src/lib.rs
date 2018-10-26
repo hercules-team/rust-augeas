@@ -303,6 +303,18 @@ impl Augeas {
         unsafe { aug_cp(self.ptr, src.as_ptr(), dst.as_ptr()) };
         self.make_result(())
     }
+
+    pub fn escape_name(&self, inp: &str) -> Result<Option<String>> {
+        let inp = CString::new(inp)?;
+        let mut out : *mut c_char = ptr::null_mut();
+
+        unsafe { aug_escape_name(self.ptr, inp.as_ptr(), &mut out) };
+
+        let s = ptr_to_string(out);
+        unsafe { libc::free(out as *mut libc::c_void) };
+        self.make_result(s)
+    }
+
 }
 
 impl Augeas {
@@ -525,6 +537,18 @@ fn cp_test() {
 
     let root = aug.get("etc/passwd/root/uid").unwrap().unwrap();
     assert_eq!("0", root);
+}
+
+#[test]
+fn escape_test() {
+    let aug = Augeas::init("tests/test_root", "", Flags::None).unwrap();
+
+    // no escaping needed
+    let n = aug.escape_name("foo");
+    assert_eq!(Ok(None), n);
+
+    let n = aug.escape_name("foo[");
+    assert_eq!(Ok(Some(String::from("foo\\["))), n);
 }
 
 #[test]
