@@ -1,8 +1,7 @@
 use std::ffi::CStr;
 use libc::c_char;
 
-#[allow(unused_unsafe)]
-pub unsafe fn ptr_to_string(s: *const c_char) -> Option<String> {
+pub fn ptr_to_string(s: *const c_char) -> Option<String> {
     if s.is_null() {
         None
     } else {
