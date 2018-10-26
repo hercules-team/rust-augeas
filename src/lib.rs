@@ -4,7 +4,7 @@ use augeas_sys as raw;
 use std::ptr;
 use std::mem::transmute;
 use std::ffi::CString;
-use libc::c_char;
+use libc::{c_char,c_int};
 use std::convert::From;
 
 pub mod error;
@@ -21,6 +21,21 @@ pub struct Augeas {
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Clone, Copy)]
+pub enum Position {
+    Before,
+    After
+}
+
+impl From<Position> for c_int {
+    fn from(pos: Position) -> Self {
+        match pos {
+            Position::Before => 1,
+            Position::After => 0
+        }
+    }
+}
 
 impl Augeas {
     fn make_error<T>(&self) -> Result<T> {
@@ -109,6 +124,14 @@ impl Augeas {
         unsafe { raw::aug_set(self.ptr, path_c.as_ptr(), value_c.as_ptr()) };
         self.make_result(())
     }
+
+    pub fn insert(&mut self, path: &str, label: &str, pos:Position) -> Result<()> {
+        let path = CString::new(path.as_bytes())?;
+        let label = CString::new(label.as_bytes())?;
+
+        unsafe { raw::aug_insert(self.ptr, path.as_ptr(), label.as_ptr(), c_int::from(pos)) };
+        self.make_result(())
+    }
 }
 
 impl Drop for Augeas {
@@ -158,6 +181,19 @@ fn matches_test() {
     for user in users.iter() {
         println!("{}", &aug.label(&user).unwrap().unwrap_or("unknown".to_string()));
     }
+}
+
+#[test]
+fn insert_test() {
+    let mut aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
+
+    aug.insert("etc/passwd/root", "before", Position::Before).unwrap();
+    aug.insert("etc/passwd/root", "after", Position::After).unwrap();
+    let users = aug.matches("etc/passwd/*").unwrap();
+    assert_eq!(["/files/etc/passwd/before",
+                "/files/etc/passwd/root",
+                "/files/etc/passwd/after"],
+                users[0..3]);
 }
 
 #[test]
