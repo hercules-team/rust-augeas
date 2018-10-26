@@ -316,6 +316,12 @@ impl Augeas {
         self.make_result(s)
     }
 
+    pub fn load_file(&mut self, file: &str) -> Result<()> {
+        let file = CString::new(file)?;
+
+        unsafe { raw::aug_load_file(self.ptr, file.as_ptr()) };
+        self.make_result(())
+    }
 }
 
 impl Drop for Augeas {
@@ -532,6 +538,20 @@ fn escape_test() {
 
     let n = aug.escape_name("foo[");
     assert_eq!(Ok(Some(String::from("foo\\["))), n);
+}
+
+#[test]
+fn load_file_test() {
+    let mut aug = Augeas::new("tests/test_root", "", AugFlag::NoLoad).unwrap();
+
+    aug.load_file("/etc/passwd").unwrap();
+    let root = aug.get("etc/passwd/root/uid").unwrap();
+    assert!(root.is_some());
+
+    let err = aug.load_file("/var/no/lens/for/this");
+    assert!(err.is_err());
+    let e = err.err().unwrap();
+    assert!(e.is_code(raw::ErrorCode::NoLens));
 }
 
 #[test]
