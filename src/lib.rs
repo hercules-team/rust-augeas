@@ -143,6 +143,14 @@ impl Augeas {
         // the result of aug_error
         self.make_result(r as u32)
     }
+
+    pub fn mv(&mut self, src: &str, dst: &str) -> Result<()> {
+        let src = CString::new(src)?;
+        let dst = CString::new(dst)?;
+
+        unsafe { raw::aug_mv(self.ptr, src.as_ptr(), dst.as_ptr()) };
+        self.make_result(())
+    }
 }
 
 impl Drop for Augeas {
@@ -216,6 +224,18 @@ fn rm_test() {
 
     let r = aug.rm("etc/passwd").unwrap();
     assert_eq!(64, r);
+}
+
+#[test]
+fn mv_test() {
+    let mut aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
+
+    let e = aug.mv("etc/passwd", "etc/passwd/root");
+    assert!(e.is_err());
+
+    aug.mv("etc/passwd", "etc/other").unwrap();
+    assert_eq!(0, aug.matches("etc/passwd").unwrap().len());
+    assert_eq!(1, aug.matches("etc/other").unwrap().len());
 }
 
 #[test]
