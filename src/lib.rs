@@ -287,6 +287,15 @@ impl Augeas {
         self.make_result(())
     }
 
+    pub fn transform(&mut self, lens: &str, file: &str,
+                     excl : bool) -> Result<()> {
+        let lens = CString::new(lens)?;
+        let file = CString::new(file)?;
+
+        unsafe { aug_transform(self.ptr, lens.as_ptr(),
+                               file.as_ptr(), excl as i32) };
+        self.make_result(())
+    }
 }
 
 impl Augeas {
@@ -488,6 +497,15 @@ fn rename_test() {
 
     let root = aug.get("etc/passwd/root/uid").unwrap();
     assert!(root.is_none());
+}
+
+#[test]
+fn transform_test() {
+    let mut aug = Augeas::init("tests/test_root", "", Flags::None).unwrap();
+
+    aug.transform("Hosts.lns", "/usr/local/etc/hosts", false).unwrap();
+    let p = aug.get("/augeas/load/Hosts/incl[. = '/usr/local/etc/hosts']").unwrap();
+    assert!(p.is_some());
 }
 
 #[test]
