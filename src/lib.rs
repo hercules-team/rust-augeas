@@ -132,6 +132,17 @@ impl Augeas {
         unsafe { raw::aug_insert(self.ptr, path.as_ptr(), label.as_ptr(), c_int::from(pos)) };
         self.make_result(())
     }
+
+    pub fn rm(&mut self, path: &str) -> Result<u32> {
+        let path = CString::new(path.as_bytes())?;
+        let r = unsafe {
+            raw::aug_rm(self.ptr, path.as_ptr())
+        };
+        // coercing i32 to u32 is fine here since r is only negative
+        // when an error occurred and make_result notices that from
+        // the result of aug_error
+        self.make_result(r as u32)
+    }
 }
 
 impl Drop for Augeas {
@@ -194,6 +205,17 @@ fn insert_test() {
                 "/files/etc/passwd/root",
                 "/files/etc/passwd/after"],
                 users[0..3]);
+}
+
+#[test]
+fn rm_test() {
+    let mut aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
+
+    let e = aug.rm("/augeas[");
+    assert!(e.is_err());
+
+    let r = aug.rm("etc/passwd").unwrap();
+    assert_eq!(64, r);
 }
 
 #[test]
