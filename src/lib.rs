@@ -96,7 +96,7 @@ impl Augeas {
 
         unsafe { raw::aug_get(self.ptr, path_c.as_ptr(), &mut return_value) };
 
-        self.make_result(unsafe { ptr_to_string(return_value) })
+        self.make_result(ptr_to_string(return_value))
     }
 
     pub fn label(&self, path: &str) -> Result<Option<String>> {
@@ -107,7 +107,7 @@ impl Augeas {
             raw::aug_label(self.ptr, path_c.as_ptr(), &mut return_value)
         };
 
-        self.make_result(unsafe { ptr_to_string(return_value) })
+        self.make_result(ptr_to_string(return_value))
     }
 
     pub fn matches(&self, path: &str) -> Result<Vec<String>> {
@@ -237,7 +237,7 @@ impl Augeas {
             }
         }
 
-        result.filename = unsafe { ptr_to_string(filename) };
+        result.filename = ptr_to_string(filename);
         unsafe { libc::free(filename as *mut libc::c_void) };
         Ok(Some(result))
     }
