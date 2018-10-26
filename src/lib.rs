@@ -295,6 +295,14 @@ impl Augeas {
                                file.as_ptr(), excl as i32) };
         self.make_result(())
     }
+
+    pub fn cp(&mut self, src: &str, dst: &str) -> Result<()> {
+        let src = CString::new(src)?;
+        let dst = CString::new(dst)?;
+
+        unsafe { aug_cp(self.ptr, src.as_ptr(), dst.as_ptr()) };
+        self.make_result(())
+    }
 }
 
 impl Augeas {
@@ -505,6 +513,18 @@ fn transform_test() {
     aug.transform("Hosts.lns", "/usr/local/etc/hosts", false).unwrap();
     let p = aug.get("/augeas/load/Hosts/incl[. = '/usr/local/etc/hosts']").unwrap();
     assert!(p.is_some());
+}
+
+#[test]
+fn cp_test() {
+    let mut aug = Augeas::init("tests/test_root", "", Flags::None).unwrap();
+
+    aug.cp("etc/passwd/root", "etc/passwd/ruth").unwrap();
+    let ruth = aug.get("etc/passwd/ruth/uid").unwrap().unwrap();
+    assert_eq!("0", ruth);
+
+    let root = aug.get("etc/passwd/root/uid").unwrap().unwrap();
+    assert_eq!("0", root);
 }
 
 #[test]
