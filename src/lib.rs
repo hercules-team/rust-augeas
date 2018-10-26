@@ -186,6 +186,15 @@ impl Augeas {
         self.make_result(())
     }
 
+    pub fn setm(&mut self, base: &str, sub: &str, value: &str) -> Result<(u32)> {
+        let base = CString::new(base)?;
+        let sub = CString::new(sub)?;
+        let value = CString::new(value)?;
+
+        let r = unsafe { raw::aug_setm(self.ptr, base.as_ptr(), sub.as_ptr(),
+                                       value.as_ptr()) };
+        self.make_result(r as u32)
+    }
 }
 
 impl Drop for Augeas {
@@ -306,6 +315,14 @@ fn load_test() {
     aug.load().unwrap();
     let uid = aug.get("etc/passwd/root/uid").unwrap();
     assert_eq!("0", uid.expect("expected value for root/uid"));
+}
+
+#[test]
+fn setm_test() {
+    let mut aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
+
+    let count = aug.setm("etc/passwd", "*/shell", "/bin/zsh").unwrap();
+    assert_eq!(9, count);
 }
 
 #[test]
