@@ -68,6 +68,15 @@ impl fmt::Display for AugeasError {
     }
 }
 
+impl Error {
+    pub fn is_code(&self, code : raw::ErrorCode) -> bool {
+        match self {
+            Error::Augeas(err) => err.code == code,
+            _ => false
+        }
+    }
+}
+
 impl From<NulError> for Error {
     fn from(err : NulError) -> Error {
         Error::Nul(err)
