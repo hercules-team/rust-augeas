@@ -42,6 +42,8 @@ impl Augeas {
         Err(Error::from(self))
     }
 
+    // Check self for an error, and return the resulting error. If there
+    // was no error, return Ok(v)
     fn make_result<T>(&self, v : T) -> Result<T> {
         let err = unsafe { raw::aug_error(self.ptr) };
         if err == raw::ErrorCode::NoError {
@@ -110,6 +112,14 @@ impl Augeas {
 
             Ok(matches_vec)
         }
+    }
+
+    pub fn count(&self, path: &str) -> Result<u32> {
+        let path = CString::new(path)?;
+
+        let r = unsafe { raw::aug_match(self.ptr, path.as_ptr(), ptr::null_mut()) };
+
+        self.make_result(r as u32)
     }
 
     pub fn save(&mut self) -> Result<()> {
@@ -195,11 +205,12 @@ fn matches_test() {
     let aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
 
     let users = aug.matches("etc/passwd/*").unwrap();
+    let count = aug.count("etc/passwd/*").unwrap();
 
-    println!("Users in passwd:");
-    for user in users.iter() {
-        println!("{}", &aug.label(&user).unwrap().unwrap_or("unknown".to_string()));
-    }
+    assert_eq!(9, users.len());
+    assert_eq!(9, count);
+    assert_eq!("/files/etc/passwd/root", users[0]);
+    assert_eq!("/files/etc/passwd/nobody", users[8]);
 }
 
 #[test]
@@ -234,8 +245,8 @@ fn mv_test() {
     assert!(e.is_err());
 
     aug.mv("etc/passwd", "etc/other").unwrap();
-    assert_eq!(0, aug.matches("etc/passwd").unwrap().len());
-    assert_eq!(1, aug.matches("etc/other").unwrap().len());
+    assert_eq!(0, aug.count("etc/passwd").unwrap());
+    assert_eq!(1, aug.count("etc/other").unwrap());
 }
 
 #[test]
