@@ -239,6 +239,46 @@ impl Augeas {
         unsafe { libc::free(filename as *mut libc::c_void) };
         Ok(Some(result))
     }
+
+    pub fn text_store(&mut self, lens: &str, node: &str, path: &str) -> Result<()> {
+        let err_path = format!("/augeas/text{}/error", path);
+
+        let lens = CString::new(lens)?;
+        let node = CString::new(node)?;
+        let path = CString::new(path)?;
+
+        unsafe { aug_text_store(self.ptr, lens.as_ptr(), node.as_ptr(),
+                                path.as_ptr()) };
+
+        let err = self.get(&err_path)?;
+        if let Some(kind) = err {
+            return Err(Error::from(kind));
+        }
+        self.make_result(())
+    }
+
+    pub fn text_retrieve(&mut self, lens: &str,
+        node_in: &str, path: &str,
+        node_out: &str) -> Result<()> {
+        let err_path = format!("/augeas/text{}/error", path);
+
+        let lens = CString::new(lens)?;
+        let node_in = CString::new(node_in)?;
+        let path = CString::new(path)?;
+        let node_out = CString::new(node_out)?;
+
+        unsafe { aug_text_retrieve(self.ptr, lens.as_ptr(),
+                                   node_in.as_ptr(), path.as_ptr(),
+                                   node_out.as_ptr()) };
+
+        let err = self.get(&err_path)?;
+        if let Some(kind) = err {
+            return Err(Error::from(kind));
+        }
+
+        self.make_result(())
+    }
+
 }
 
 impl Augeas {
@@ -405,6 +445,28 @@ fn span_test() {
     // too many matches
     let span = aug.span("etc/passwd/*");
     assert!(span.is_err());
+}
+
+#[test]
+fn store_retrieve_test() {
+    let mut aug = Augeas::init("tests/test_root", "", Flags::None).unwrap();
+
+    aug.set("/text/in", "alex:x:12:12:Alex:/home/alex:/bin/sh\n").unwrap();
+    aug.text_store("Passwd.lns", "/text/in", "/stored").unwrap();
+    aug.set("/stored/alex/uid", "17").unwrap();
+
+    aug.text_retrieve("Passwd.lns", "/text/in", "/stored", "/text/out").unwrap();
+    let text = aug.get("/text/out").unwrap().unwrap();
+    assert_eq!("alex:x:17:12:Alex:/home/alex:/bin/sh\n", text);
+
+    // Invalidate the tree; 'shell' must be present
+    aug.rm("/stored/alex/shell").unwrap();
+    let err = aug.text_retrieve("Passwd.lns", "/text/in", "/stored", "/text/out").err().unwrap();
+    assert_eq!("parse error of kind put_failed", format!("{}", err));
+
+    aug.set("/text/in", "alex:invalid passwd entry").unwrap();
+    let err = aug.text_store("Passwd.lns", "/text/in", "/stored").err().unwrap();
+    assert_eq!("parse error of kind parse_failed", format!("{}", err));
 }
 
 #[test]

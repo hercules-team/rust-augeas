@@ -7,23 +7,16 @@ use augeas_sys::*;
 #[derive(Clone,PartialEq,Debug)]
 pub enum Error {
     Augeas(AugeasError),
+    Parse(ParseError),
     Nul(NulError)
-}
-
-impl ::std::error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::Augeas(ref err) => err.description(),
-            Error::Nul(ref err) => err.description()
-        }
-    }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Augeas(ref err) => err.fmt(f),
-            Error::Nul(ref err) => err.fmt(f)
+            Error::Nul(ref err) => err.fmt(f),
+            Error::Parse(ref err) => err.fmt(f)
         }
     }
 }
@@ -144,4 +137,25 @@ impl ErrorCode {
 
 impl Default for ErrorCode {
     fn default() -> ErrorCode { ErrorCode::NoError }
+}
+
+impl From<String> for Error {
+    fn from(kind: String) -> Error {
+        Error::Parse(ParseError {
+            kind: kind
+        })
+    }
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "parse error of kind {}", self.kind)
+    }
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct ParseError {
+    // There's a lot more information we can/should pull out of the
+    // tree when parsing goes wrong
+    pub kind : String
 }
