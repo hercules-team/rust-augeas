@@ -73,6 +73,7 @@ extern {
     pub fn aug_mv(aug: augeas_t, src: *const c_char, dst: *const c_char) -> c_int;
     pub fn aug_match(aug: augeas_t, path: *const c_char, matches: *mut *mut *mut c_char ) -> c_int;
     pub fn aug_save(aug: augeas_t) -> c_int;
+    // No binding for aug_print since dealing with FILE is complicated
     pub fn aug_print(out: *mut FILE, path: *const c_char) -> c_int;
     // Symbol version AUGEAS_0.8.0
     pub fn aug_defvar(aug: augeas_t, name: *const c_char, expr: *const c_char) -> c_int;
@@ -92,8 +93,10 @@ extern {
         span_start: *mut c_uint, span_end: *mut c_uint
     ) -> c_int;
     // Symbol version AUGEAS_0.14.0
+    // No binding for aug_srun since dealing with FILE is complicated
     pub fn aug_srun(aug: augeas_t, out: *mut FILE, text: *const c_char) -> c_int;
     // Symbol version AUGEAS_0.15.0
+    // No binding for aug_to_xml since we don't want to pull libXml bindings in
     pub fn aug_to_xml(aug: augeas_t, path: *const c_char, xmldoc: *mut *mut xmlNode,
         flags: c_uint) -> c_int;
     // Symbol version AUGEAS_0.16.0
