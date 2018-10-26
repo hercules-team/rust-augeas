@@ -6,7 +6,7 @@ use augeas_sys::*;
 use std::ptr;
 use std::mem::transmute;
 use std::ffi::CString;
-use std::os::raw::c_char;
+use std::os::raw::{c_char,c_int};
 use std::convert::From;
 
 pub mod error;
@@ -26,6 +26,21 @@ pub struct Augeas {
     ptr: *mut augeas,
 }
 
+#[derive(Clone, Copy)]
+pub enum Position {
+    Before,
+    After
+}
+
+impl From<Position> for c_int {
+    fn from(pos: Position) -> Self {
+        match pos {
+            Position::Before => 1,
+            Position::After => 0
+        }
+    }
+}
+
 impl Augeas {
     pub fn init<'a>(root: impl Into<Option<&'a str>>, loadpath: &str, flags: Flags) -> Result<Self> {
         let ref root = match root.into() {
@@ -40,7 +55,7 @@ impl Augeas {
         let loadpath = loadpath.as_ptr();
         let flags = flags.bits();
         let augeas = unsafe { aug_init(root, loadpath, flags) };
-        
+
         if augeas.is_null() {
             let message = String::from("Failed to initialize Augeas");
             return Err(Error::Augeas(AugeasError::new_no_mem(message)));
@@ -106,6 +121,14 @@ impl Augeas {
         let value_c = CString::new(value.as_bytes())?;
 
         unsafe { aug_set(self.ptr, path_c.as_ptr(), value_c.as_ptr()) };
+        self.make_result(())
+    }
+
+    pub fn insert(&mut self, path: &str, label: &str, pos:Position) -> Result<()> {
+        let path = CString::new(path.as_bytes())?;
+        let label = CString::new(label.as_bytes())?;
+
+        unsafe { aug_insert(self.ptr, path.as_ptr(), label.as_ptr(), c_int::from(pos)) };
         self.make_result(())
     }
 }
@@ -175,6 +198,19 @@ fn matches_test() {
     for user in users.iter() {
         println!("{}", &aug.label(&user).unwrap().unwrap_or("unknown".to_string()));
     }
+}
+
+#[test]
+fn insert_test() {
+    let mut aug = Augeas::init("tests/test_root", "", Flags::None).unwrap();
+
+    aug.insert("etc/passwd/root", "before", Position::Before).unwrap();
+    aug.insert("etc/passwd/root", "after", Position::After).unwrap();
+    let users = aug.matches("etc/passwd/*").unwrap();
+    assert_eq!(["/files/etc/passwd/before",
+                "/files/etc/passwd/root",
+                "/files/etc/passwd/after"],
+                users[0..3]);
 }
 
 #[test]
