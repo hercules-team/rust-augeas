@@ -86,7 +86,7 @@ extern {
     pub fn aug_error_details(aug: augeas_t) -> *const c_char;
     // Symbol version AUGEAS_0.11.0
     pub fn aug_setm(aug: augeas_t, base: *const c_char, sub: *const c_char, value: *const c_char) -> c_int;
-    // Symbol version AUGEAS_0.12.0    
+    // Symbol version AUGEAS_0.12.0
     pub fn aug_span(aug: augeas_t, path: *const c_char, filename: *mut *mut c_char,
         label_start: *mut c_uint, label_end: *mut c_uint,
         value_start: *mut c_uint, value_end: *mut c_uint,
@@ -110,4 +110,24 @@ extern {
     pub fn aug_label(aug: augeas_t, path: *const c_char, label: *mut *const c_char) -> c_int;
     // Symbol version AUGEAS_0.18.0
     pub fn aug_cp(aug: augeas_t, src: *const c_char, dst: *const c_char) -> c_int;
+    // Symbol version AUGEAS_0.20.0
+    pub fn aug_escape_name(aug: augeas_t, in_: *const c_char,
+                           out: *mut *mut c_char) -> c_int;
+    // Symbol version AUGEAS_0.21.0
+    pub fn aug_load_file(aug: augeas_t, file: *const c_char) -> c_int;
+    // Symbol version AUGEAS_0.22.0
+    pub fn aug_source(aug: augeas_t, path: *const c_char,
+                      file_path: *mut *mut c_char) -> c_int;
+    // Symbol version AUGEAS_0.23.0
+    pub fn aug_ns_attr(aug: augeas_t, var: *const c_char,
+        i: c_int, value: *mut *const c_char,
+        label: *mut *const c_char, file_path: *mut *mut c_char) -> c_int;
+    // Symbol version AUGEAS_0.24.0
+    pub fn aug_ns_label(aug: augeas_t, var: *const c_char, i: c_int,
+        label: *mut *const c_char, index: *mut c_int) -> c_int;
+    pub fn aug_ns_value(aug: augeas_t, var: *const c_char,
+        i: c_int, value: *mut *const c_char) -> c_int;
+    pub fn aug_ns_count(aug: augeas_t, var: *const c_char) -> c_int;
+    pub fn aug_ns_path(aug: augeas_t, var: *const c_char, i: c_int,
+                       path: *mut *mut c_char) -> c_int;
 }
