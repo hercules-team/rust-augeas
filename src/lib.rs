@@ -8,6 +8,7 @@ use std::mem::transmute;
 use std::ffi::CString;
 use std::os::raw::{c_char,c_int};
 use std::convert::From;
+use std::ops::Range;
 
 pub mod error;
 pub use error::Error;
@@ -37,6 +38,25 @@ impl From<Position> for c_int {
         match pos {
             Position::Before => 1,
             Position::After => 0
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Span {
+    pub label : Range<u32>,
+    pub value : Range<u32>,
+    pub span  : Range<u32>,
+    pub filename : Option<String>
+}
+
+impl Span {
+    fn new() -> Span {
+        Span {
+            label: 0..0,
+            value: 0..0,
+            span: 0..0,
+            filename: None
         }
     }
 }
@@ -192,6 +212,33 @@ impl Augeas {
                                   value.as_ptr()) };
         self.make_result(r as u32)
     }
+
+    pub fn span(&self, path: &str) -> Result<Option<Span>> {
+        let path = CString::new(path)?;
+        let mut filename : *mut c_char = ptr::null_mut();
+        let mut result = Span::new();
+
+        unsafe {
+            aug_span(self.ptr, path.as_ptr(), &mut filename,
+                     &mut result.label.start, &mut result.label.end,
+                     &mut result.value.start, &mut result.value.end,
+                     &mut result.span.start, &mut result.span.end);
+        }
+
+        let err = unsafe { aug_error(self.ptr) };
+        let err = ErrorCode::from_raw(err as _);
+        if err != ErrorCode::NoError {
+            if err == ErrorCode::NoSpan {
+                return Ok(None);
+            } else {
+                return self.make_result(None);
+            }
+        }
+
+        result.filename = unsafe { ptr_to_string(filename) };
+        unsafe { libc::free(filename as *mut libc::c_void) };
+        Ok(Some(result))
+    }
 }
 
 impl Augeas {
@@ -338,6 +385,26 @@ fn setm_test() {
 
     let count = aug.setm("etc/passwd", "*/shell", "/bin/zsh").unwrap();
     assert_eq!(9, count);
+}
+
+#[test]
+fn span_test() {
+    let aug = Augeas::init("tests/test_root", "", Flags::EnableSpan).unwrap();
+
+    // happy path
+    let span = aug.span("etc/passwd/root").unwrap().unwrap();
+    assert_eq!(0..4, span.label);
+    assert_eq!(0..0, span.value);
+    assert_eq!(0..32, span.span);
+    assert_eq!("tests/test_root/etc/passwd", span.filename.unwrap());
+    
+    // no span info associated with node
+    let span = aug.span("/augeas/load").unwrap();
+    assert!(span.is_none());
+
+    // too many matches
+    let span = aug.span("etc/passwd/*");
+    assert!(span.is_err());
 }
 
 #[test]
