@@ -321,6 +321,16 @@ impl Augeas {
         unsafe { aug_load_file(self.ptr, file.as_ptr()) };
         self.make_result(())
     }
+
+    pub fn source(&self, path: &str) -> Result<Option<String>> {
+        let path = CString::new(path)?;
+        let mut file_path : *mut c_char = ptr::null_mut();
+
+        unsafe { aug_source(self.ptr, path.as_ptr(), &mut file_path) };
+        let s = ptr_to_string(file_path);
+        unsafe { libc::free(file_path as *mut libc::c_void) };
+        self.make_result(s)
+    }
 }
 
 impl Augeas {
@@ -569,6 +579,16 @@ fn load_file_test() {
     assert!(err.is_err());
     let e = err.err().unwrap();
     assert!(e.is_code(ErrorCode::NoLens));
+}
+
+#[test]
+fn source_test() {
+    let aug = Augeas::init("tests/test_root", "", Flags::None).unwrap();
+
+    let s = aug.source("etc/passwd/root/uid").unwrap();
+    // s should be Some("/files/etc/passwd") but Augeas versions before
+    // 1.11 had a bug that makes the result always None
+    assert!(s.is_none() || s.unwrap() == "/files/etc/passwd")
 }
 
 #[test]
