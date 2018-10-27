@@ -57,6 +57,13 @@ impl Span {
     }
 }
 
+#[derive(Debug)]
+pub struct Attr {
+    pub label : Option<String>,
+    pub value : Option<String>,
+    pub file_path : Option<String>
+}
+
 impl Augeas {
     fn make_error<T>(&self) -> Result<T> {
         Err(Error::from(self))
@@ -332,6 +339,85 @@ impl Augeas {
         unsafe { libc::free(file_path as *mut libc::c_void) };
         self.make_result(s)
     }
+
+    pub fn ns_attr(&self, var: &str, i: u32) -> Result<Attr> {
+        let var = CString::new(var)?;
+
+        let mut value : *const c_char = ptr::null_mut();
+        let mut label : *const c_char = ptr::null_mut();
+        let mut file_path : *mut c_char = ptr::null_mut();
+
+        let rc = unsafe { raw::aug_ns_attr(self.ptr, var.as_ptr(), i as c_int,
+                                           &mut value, &mut label, &mut file_path) };
+        if rc < 0 {
+            return self.make_error()
+        }
+
+        let attr = Attr { 
+            label: ptr_to_string(label),
+            value: ptr_to_string(value),
+            file_path: ptr_to_string(file_path) };
+        
+        unsafe { libc::free(file_path as *mut libc::c_void) };
+
+        self.make_result(attr)
+    }
+
+    pub fn ns_label(&self, var: &str, i: u32) -> Result<String> {
+        let var = CString::new(var)?;
+
+        let mut label : *const c_char = ptr::null_mut();
+        
+        let rc = unsafe { raw::aug_ns_label(self.ptr, var.as_ptr(), i as c_int,
+                          &mut label, ptr::null_mut() ) };
+        if rc < 0 {
+            return self.make_error()
+        }
+
+        match ptr_to_string(label) {
+            Some(label) => Ok(label),
+            None => Err(Error::from(raw::ErrorCode::NoMatch)) 
+        }
+    }
+
+    pub fn ns_index(&self, var: &str, i: u32) -> Result<u32> {
+        let var = CString::new(var)?;
+
+        let mut index : c_int = 0;
+        
+        unsafe { raw::aug_ns_label(self.ptr, var.as_ptr(), i as c_int,
+                 ptr::null_mut(), &mut index ) };
+        return self.make_result(index as u32)
+    }
+
+    pub fn ns_value(&self, var: &str, i: u32) -> Result<Option<String>> {
+        let var = CString::new(var)?;
+
+        let mut value : *const c_char = ptr::null_mut();
+        unsafe { raw::aug_ns_value(self.ptr, var.as_ptr(), i as c_int,
+                                   &mut value) };
+        
+        self.make_result(ptr_to_string(value))
+    }
+
+    pub fn ns_count(&self, var: &str) -> Result<u32> {
+        let var = CString::new(var)?;
+
+        let rc = unsafe { raw::aug_ns_count(self.ptr, var.as_ptr()) };
+        self.make_result(rc as u32)
+    }
+
+    pub fn ns_path(&self, var: &str, i: u32) -> Result<Option<String>> {
+        let var = CString::new(var)?;
+
+        let mut path : *mut c_char = ptr::null_mut();
+
+        unsafe { raw::aug_ns_path(self.ptr, var.as_ptr(), i as c_int, &mut path) };
+        let p = ptr_to_string(path);
+        unsafe { libc::free(path as *mut libc::c_void) };
+
+        self.make_result(p)
+    }
 }
 
 impl Drop for Augeas {
@@ -572,6 +658,40 @@ fn source_test() {
     // s should be Some("/files/etc/passwd") but Augeas versions before
     // 1.11 had a bug that makes the result always None
     assert!(s.is_none() || s.unwrap() == "/files/etc/passwd")
+}
+
+#[test]
+fn ns_test() {
+    let mut aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
+
+    aug.defvar("x", "etc/passwd/*").unwrap();
+    aug.defvar("uid", "etc/passwd/*/uid").unwrap();
+
+    let attr = aug.ns_attr("x", 0).unwrap();
+    assert_eq!("root", attr.label.unwrap());
+    assert!(attr.value.is_none());
+    assert_eq!("/files/etc/passwd", attr.file_path.unwrap());
+
+    let attr = aug.ns_attr("x", 10000).unwrap_err();
+    assert!(attr.is_code(raw::ErrorCode::NoMatch));
+
+    let attr = aug.ns_attr("y", 0).unwrap_err();
+    assert!(attr.is_code(raw::ErrorCode::NoMatch));
+
+    let label = aug.ns_label("x", 0).unwrap();
+    assert_eq!("root", label);
+
+    let index = aug.ns_index("x", 4).unwrap();
+    assert_eq!(0, index);
+
+    let uid = aug.ns_value("uid", 2).unwrap().unwrap();
+    assert_eq!("2", &uid);
+
+    let count = aug.ns_count("uid").unwrap();
+    assert_eq!(9, count);
+
+    let path = aug.ns_path("uid", 0).unwrap().unwrap();
+    assert_eq!("/files/etc/passwd/root/uid", path);
 }
 
 #[test]

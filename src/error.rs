@@ -98,6 +98,17 @@ impl <'a> From<&'a Augeas> for Error {
     }
 }
 
+impl From<raw::ErrorCode> for Error {
+    fn from(code : raw::ErrorCode) -> Error {
+        Error::Augeas(AugeasError {
+            code : code,
+            message : None,
+            minor_message : None,
+            details : None
+        })
+    }   
+}
+
 impl From<String> for Error {
     fn from(kind: String) -> Error {
         Error::Parse(ParseError {
