@@ -148,6 +148,17 @@ impl Default for ErrorCode {
     fn default() -> ErrorCode { ErrorCode::NoError }
 }
 
+impl From<ErrorCode> for Error {
+    fn from(code : ErrorCode) -> Error {
+        Error::Augeas(AugeasError {
+            code : code,
+            message : None,
+            minor_message : None,
+            details : None
+        })
+    }
+}
+
 impl From<String> for Error {
     fn from(kind: String) -> Error {
         Error::Parse(ParseError {
