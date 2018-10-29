@@ -1,85 +1,84 @@
-extern crate libc;
 extern crate augeas_sys;
-use augeas_sys as raw;
+extern crate libc;
+#[macro_use] extern crate bitflags;
+
+use augeas_sys::*;
 use std::ptr;
 use std::mem::transmute;
 use std::ffi::CString;
-use libc::c_char;
+use std::os::raw::c_char;
 use std::convert::From;
 
 pub mod error;
 pub use error::Error;
 use error::AugeasError;
+use error::ErrorCode;
+
+mod flags;
+pub use self::flags::Flags;
 
 mod util;
 use util::ptr_to_string;
 
-pub use augeas_sys::AugFlag;
-
-pub struct Augeas {
-    ptr: raw::augeas_t
-}
-
 pub type Result<T> = std::result::Result<T, Error>;
 
+pub struct Augeas {
+    ptr: *mut augeas,
+}
+
 impl Augeas {
-    fn make_error<T>(&self) -> Result<T> {
-        Err(Error::from(self))
-    }
-
-    fn make_result<T>(&self, v : T) -> Result<T> {
-        let err = unsafe { raw::aug_error(self.ptr) };
-        if err == raw::ErrorCode::NoError {
-            Ok(v)
-        } else {
-            self.make_error()
-        }
-    }
-
-    pub fn new(root: &str, loadpath: &str, flags: AugFlag) -> Result<Augeas> {
-        let root_c = try!(CString::new(root));
-        let loadpath_c = try!(CString::new(loadpath));
-
-        let augeas = unsafe {
-            raw::aug_init(root_c.as_ptr(), loadpath_c.as_ptr(), flags as u32)
+    pub fn init<'a>(root: impl Into<Option<&'a str>>, loadpath: &str, flags: Flags) -> Result<Self> {
+        let ref root = match root.into() {
+            Some(root) => Some(CString::new(root)?),
+            None => None,
         };
+        let root = match root {
+            Some(root) => root.as_ptr(),
+            None => ptr::null(),
+        };
+        let ref loadpath = CString::new(loadpath)?;
+        let loadpath = loadpath.as_ptr();
+        let flags = flags.bits();
+        let augeas = unsafe { aug_init(root, loadpath, flags) };
+        
         if augeas.is_null() {
             let message = String::from("Failed to initialize Augeas");
-            Err(Error::Augeas(AugeasError::new_no_mem(message)))
-        } else {
-            Ok(Augeas{
-                ptr: augeas
-            })
+            return Err(Error::Augeas(AugeasError::new_no_mem(message)));
         }
+
+        Ok(Augeas {
+            ptr: augeas,
+        })
     }
 
     pub fn get(&self, path: &str) -> Result<Option<String>> {
-        let path_c = try!(CString::new(path));
-        let mut return_value: *mut c_char = ptr::null_mut();
+        let ref path = CString::new(path)?;
+        let path = path.as_ptr();
+        let mut value: *const c_char = ptr::null_mut();
+        unsafe { aug_get(self.ptr, path, &mut value) };
+        let value = unsafe { ptr_to_string(value) };
 
-        unsafe { raw::aug_get(self.ptr, path_c.as_ptr(), &mut return_value) };
-
-        self.make_result(unsafe { ptr_to_string(return_value) })
+        self.make_result(value)
     }
 
-    pub fn label(&self, path: &str) -> Result<Option<String>> {
-        let path_c = try!(CString::new(path));
+        pub fn label(&self, path: &str) -> Result<Option<String>> {
+        let path_c = CString::new(path)?;
         let mut return_value: *const c_char = ptr::null();
 
         unsafe {
-            raw::aug_label(self.ptr, path_c.as_ptr(), &mut return_value)
+            aug_label(self.ptr, path_c.as_ptr(), &mut return_value)
         };
 
         self.make_result(unsafe { ptr_to_string(return_value) })
     }
 
     pub fn matches(&self, path: &str) -> Result<Vec<String>> {
-        let c_path = try!(CString::new(path));
+        let c_path = CString::new(path)?;
 
         unsafe {
             let mut matches_ptr: *mut *mut c_char = ptr::null_mut();
 
-            let nmatches = raw::aug_match(self.ptr, c_path.as_ptr(), &mut matches_ptr);
+            let nmatches = aug_match(self.ptr, c_path.as_ptr(), &mut matches_ptr);
 
             if nmatches < 0 {
                 return self.make_error()
@@ -98,30 +97,48 @@ impl Augeas {
     }
 
     pub fn save(&mut self) -> Result<()> {
-        unsafe { raw::aug_save(self.ptr) };
+        unsafe { aug_save(self.ptr) };
         self.make_result(())
     }
 
     pub fn set(&mut self, path: &str, value: &str) -> Result<()> {
-        let path_c = try!(CString::new(path.as_bytes()));
-        let value_c = try!(CString::new(value.as_bytes()));
+        let path_c = CString::new(path.as_bytes())?;
+        let value_c = CString::new(value.as_bytes())?;
 
-        unsafe { raw::aug_set(self.ptr, path_c.as_ptr(), value_c.as_ptr()) };
+        unsafe { aug_set(self.ptr, path_c.as_ptr(), value_c.as_ptr()) };
         self.make_result(())
+    }
+}
+
+impl Augeas {
+    fn make_error<T>(&self) -> Result<T> {
+        Err(Error::from(self))
+    }
+
+    fn make_result<T>(&self, v : T) -> Result<T> {
+        let err = unsafe { aug_error(self.ptr) };
+        let err = ErrorCode::from_raw(err as _);
+
+        if err != ErrorCode::NoError {
+            return self.make_error();
+        }
+
+        Ok(v)
     }
 }
 
 impl Drop for Augeas {
     fn drop(&mut self) {
         unsafe {
-            raw::aug_close(self.ptr);
+            aug_close(self.ptr);
         }
     }
 }
 
 #[test]
 fn get_test() {
-    let aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
+    use error::ErrorCode;
+    let aug = Augeas::init("tests/test_root", "", Flags::None).unwrap();
     let root_uid = aug.get("etc/passwd/root/uid").unwrap().unwrap_or("unknown".to_string());
 
     assert!(&root_uid == "0", "ID of root was {}", root_uid);
@@ -133,7 +150,7 @@ fn get_test() {
     let many = aug.get("etc/passwd/*");
 
     if let Err(Error::Augeas(err)) = many {
-        assert!(err.code == raw::ErrorCode::ManyMatches)
+        assert!(err.code == ErrorCode::ManyMatches)
     } else {
         panic!("Unexpected value: {:?}", many)
     }
@@ -141,7 +158,7 @@ fn get_test() {
 
 #[test]
 fn label_test() {
-    let aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
+    let aug = Augeas::init("tests/test_root", "", Flags::None).unwrap();
     let root_name = aug.label("etc/passwd/root").unwrap().unwrap_or("unknown".to_string());
 
     assert!(&root_name == "root", "name of root was {}", root_name);
@@ -150,7 +167,7 @@ fn label_test() {
 
 #[test]
 fn matches_test() {
-    let aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
+    let aug = Augeas::init("tests/test_root", "", Flags::None).unwrap();
 
     let users = aug.matches("etc/passwd/*").unwrap();
 
@@ -162,11 +179,11 @@ fn matches_test() {
 
 #[test]
 fn error_test() {
-    let aug = Augeas::new("tests/test_root", "", AugFlag::None).unwrap();
+    let aug = Augeas::init("tests/test_root", "", Flags::None).unwrap();
     let garbled = aug.matches("/invalid[");
 
     if let Err(Error::Augeas(err)) = garbled {
-        assert!(err.code == raw::ErrorCode::PathExpr);
+        assert!(err.code == ErrorCode::PathExpr);
         assert!(err.message.unwrap() == "Invalid path expression");
         assert!(err.minor_message.unwrap() == "illegal string literal");
         assert!(err.details.unwrap() == "/invalid[|=|")

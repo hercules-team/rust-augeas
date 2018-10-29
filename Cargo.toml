@@ -10,8 +10,8 @@ repository = "https://github.com/panicbit/rust-augeas"
 
 
 [dependencies]
-libc = "0.2.4"
 augeas_sys = { path = "augeas_sys" }
+bitflags = "1.0.4"
+libc = "0.2.43"
 
 [workspace]
-
