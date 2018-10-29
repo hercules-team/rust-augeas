@@ -4,7 +4,7 @@ rust:
   - nightly
 
 before_install:
-  - export AUG_VERSION="1.4.0"
+  - export AUG_VERSION="1.11.0"
   - wget "http://download.augeas.net/augeas-${AUG_VERSION}.tar.gz"
   - tar -xvf augeas-${AUG_VERSION}.tar.gz
   - cd "augeas-${AUG_VERSION}"
