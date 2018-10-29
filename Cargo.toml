@@ -11,7 +11,7 @@ repository = "https://github.com/panicbit/rust-augeas"
 
 [dependencies]
 libc = "0.2.4"
+augeas_sys = { path = "augeas_sys" }
 
-[dependencies.augeas_sys]
-path = "augeas_sys/"
-version = "0.0.2"
+[workspace]
+

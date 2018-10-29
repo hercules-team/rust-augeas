@@ -8,4 +8,7 @@ keywords = ["augeas", "bindings"]
 repository = "https://github.com/panicbit/augeas_sys"
 
 [dependencies]
-libc = "0.2.4"
+
+[build-dependencies]
+bindgen = "0.43.0"
+pkg-config = "0.3.14"
