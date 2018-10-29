@@ -1,7 +1,7 @@
 [package]
 
 name = "augeas"
-version = "0.0.1"
+version = "0.1.0"
 authors = ["panicbit <panicbit.dev@gmail.com>"]
 description = "High level bindings for augeas"
 license = "MIT"
