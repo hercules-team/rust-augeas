@@ -1,3 +1,40 @@
+//! Augeas bindings for Rust
+//!
+//! ## Usage
+//!
+//! In `Cargo.toml`
+//! ```toml
+//! [dependencies.augeas]
+//! version = "0.1.0"
+//! ```
+//!
+//! ## Summary
+//!
+//! This crate implements Rust bindings to [augeas](http://augeas.net/), a library for reading,
+//! modifying, and writing structured file, like configuration files.
+//!
+//! A typical interaction looks like this:
+//!
+//! ```
+//!   extern crate augeas_sys;
+//!   extern crate augeas;
+//!
+//!   use augeas_sys;
+//!   use augeas::{Augeas,AugFlag};
+//!
+//!   let mut aug = Augeas::new("/", "", AugFlag::None).unwrap();
+//!
+//!   let entry = aug.get("etc/hosts/*[canonical = 'host.example.com']/ip").unwrap();
+//!
+//!   if let Some(ip) = entry {
+//!     println!("The ip for host.example.com is {}", ip);
+//!   } else {
+//!     println!("There is no entry for host.example.com in /etc/hosts");
+//!   }
+//!
+//!   // Add an alias for host.example.com
+//!   aug.set("etc/hosts/*[canonical = 'host.example.com']/alias[last()+1]", "server.example.com");
+//! ```
 extern crate libc;
 extern crate augeas_sys;
 use augeas_sys as raw;
@@ -17,12 +54,21 @@ use util::ptr_to_string;
 
 pub use augeas_sys::AugFlag;
 
+/// The handle for the Augeas library.
+///
+/// The Augeas handle points to the in-memory data that Augeas manages, in
+/// particular, the tree generated from parsing configuration files.
 pub struct Augeas {
     ptr: raw::augeas_t
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// The insert position.
+///
+/// Use this enum with [`insert`](#method.insert) to indicate whether the
+/// new node should be inserted before or after the node passed to
+/// [`insert`](#method.insert)
 #[derive(Clone, Copy)]
 pub enum Position {
     Before,
@@ -38,6 +84,16 @@ impl From<Position> for c_int {
     }
 }
 
+/// A span in the tree
+///
+/// The [`span`](#method.span) indicates where in a file a particular node
+/// was found. The `label` and `value` give the character range from which
+/// the node's label and value were read, and `span` gives the entire region
+/// in the file from which the node was construted. If any of these values are
+/// not available, e.g., because the node has no value, the corresponding range
+/// will be empty.
+///
+/// The `filename` provides the entire path to the file in the file system
 #[derive(Debug)]
 pub struct Span {
     pub label : Range<u32>,
@@ -80,6 +136,18 @@ impl Augeas {
         }
     }
 
+    /// Create a new Augeas handle.
+    ///
+    /// Use `root` as the filesystem root. If `root` is `None`, use the value
+    /// of the environment variable `AUGEAS_ROOT`, if it is set; otherwise,
+    /// use "/".
+    ///
+    /// The `loadpath` is a colon-separated list of directories that modules
+    /// should be searched in. This is in addition to the standard load path
+    /// and the directories listed in the environment variable AUGEAS_LENS_LIB
+    ///
+    /// The `flags` are a bitmask of values from `AugFlag`.
+    ///
     pub fn new(root: &str, loadpath: &str, flags: AugFlag) -> Result<Augeas> {
         let root_c = try!(CString::new(root));
         let loadpath_c = try!(CString::new(loadpath));
@@ -97,15 +165,33 @@ impl Augeas {
         }
     }
 
+    /// Lookup the value associated with `path`.
+    ///
+    /// Return `None` if there is no value associated with `path` or if no
+    /// node matches `path`, and `Some(value)` if there is exactly one node
+    /// with a value.
+    ///
+    /// It is an error if `path` matches more than one node.
     pub fn get(&self, path: &str) -> Result<Option<String>> {
         let path_c = try!(CString::new(path));
         let mut return_value: *mut c_char = ptr::null_mut();
 
-        unsafe { raw::aug_get(self.ptr, path_c.as_ptr(), &mut return_value) };
-
+        let rc = unsafe {
+            raw::aug_get(self.ptr, path_c.as_ptr(), &mut return_value)
+        };
+        if rc == 0 {
+            return Ok(None);
+        }
         self.make_result(ptr_to_string(return_value))
     }
 
+    /// Lookup the label associated with `path`.
+    ///
+    /// Return `Some(label)` if `path` matches a node that has a label, and
+    /// `None` if `path` matches no node, or matches exactly one node
+    /// without a label.
+    ///
+    /// It is an error if `path` matches more than one node.
     pub fn label(&self, path: &str) -> Result<Option<String>> {
         let path_c = try!(CString::new(path));
         let mut return_value: *const c_char = ptr::null();
@@ -117,6 +203,11 @@ impl Augeas {
         self.make_result(ptr_to_string(return_value))
     }
 
+    /// Find all nodes matching `path`
+    ///
+    /// Find all nodes matching the path expression `path` and return their
+    /// paths in an unambiguous form that can be used with
+    /// [`get`](#method.get) to get their value.
     pub fn matches(&self, path: &str) -> Result<Vec<String>> {
         let c_path = try!(CString::new(path));
 
@@ -141,6 +232,10 @@ impl Augeas {
         }
     }
 
+    /// Count the nodes matching `path`
+    ///
+    /// Find all nodes matching the path expression `path` and return how
+    /// many there are.
     pub fn count(&self, path: &str) -> Result<u32> {
         let path = CString::new(path)?;
 
@@ -149,11 +244,23 @@ impl Augeas {
         self.make_result(r as u32)
     }
 
+    /// Save all pending changes to disk
+    ///
+    /// Turn all files in the tree for which entries have been changed,
+    /// added, or deleted back into text and write them back to file.
     pub fn save(&mut self) -> Result<()> {
         unsafe { raw::aug_save(self.ptr) };
         self.make_result(())
     }
 
+    /// Set the value of a node.
+    ///
+    /// Find the node matching `path` and change its value. If there is no
+    /// such node, an attempt is made to create one, though that might not
+    /// be possible depending on the complexity of the path expression
+    /// `path`.
+    ///
+    /// It is an error if more than one node matches `path`
     pub fn set(&mut self, path: &str, value: &str) -> Result<()> {
         let path_c = try!(CString::new(path.as_bytes()));
         let value_c = try!(CString::new(value.as_bytes()));
@@ -162,6 +269,13 @@ impl Augeas {
         self.make_result(())
     }
 
+    /// Insert a new node: find the node matching `path` and create a new
+    /// sibling for it with the given `label`. The sibling is created
+    /// before or after the node `path`, depending on the value of `pos`.
+    ///
+    /// It is an error if `path` matches no nodes, or more than one
+    /// node. The `label` must not contain a `/`, `*` or end with a
+    /// bracketed index `[N]`.
     pub fn insert(&mut self, path: &str, label: &str, pos:Position) -> Result<()> {
         let path = CString::new(path.as_bytes())?;
         let label = CString::new(label.as_bytes())?;
@@ -170,6 +284,8 @@ impl Augeas {
         self.make_result(())
     }
 
+    /// Remove `path` and all its children and return the number of nodes
+    /// removed.
     pub fn rm(&mut self, path: &str) -> Result<u32> {
         let path = CString::new(path.as_bytes())?;
         let r = unsafe {
@@ -181,6 +297,7 @@ impl Augeas {
         self.make_result(r as u32)
     }
 
+    /// Move the node matching `src` to `dst`.
     pub fn mv(&mut self, src: &str, dst: &str) -> Result<()> {
         let src = CString::new(src)?;
         let dst = CString::new(dst)?;
@@ -189,6 +306,13 @@ impl Augeas {
         self.make_result(())
     }
 
+    /// Define a variable `name` whose value is the result of evaluating
+    /// `expr`. If a variable `name` already exists, its name will be
+    /// replaced with the result of evaluating `expr`.  Context will not be
+    /// applied to `expr`.
+    ///
+    /// Path variables can be used in path expressions later on by prefixing
+    /// them with '$'.
     pub fn defvar(&mut self, name: &str, expr: &str) -> Result<()> {
         let name = CString::new(name)?;
         let expr = CString::new(expr)?;
@@ -197,6 +321,27 @@ impl Augeas {
         self.make_result(())
     }
 
+    /// Remove the variable `name`.
+    ///
+    /// It is not an error if the variable does not exist.
+    pub fn rmvar(&mut self, name: &str) -> Result<()> {
+        let name = CString::new(name)?;
+
+        unsafe { raw::aug_defvar(self.ptr, name.as_ptr(), ptr::null_mut()) };
+        self.make_result(())
+    }
+
+    /// Define a variable `name` whose value is the result of evaluating `expr`,
+    /// which must be non-NULL and evaluate to a nodeset. If a variable `name`
+    /// already exists, its name will be replaced with the result of evaluating
+    /// `expr`.
+    ///
+    /// If `expr` evaluates to an empty nodeset, a node is created,
+    /// equivalent to calling [`set(expr, value)`](#method.set) and `name`
+    /// will be the nodeset containing that single node.
+    ///
+    /// If a node was created, the method returns `true`, and `false` if no
+    /// node was created.
     pub fn defnode(&mut self, name: &str, expr: &str, value: &str) -> Result<bool> {
         let name = CString::new(name)?;
         let expr = CString::new(expr)?;
@@ -208,6 +353,9 @@ impl Augeas {
         self.make_result(cr == 1)
     }
 
+    /// Load the tree from file. If a tree was already loaded, reload the
+    /// tree, erasing any changes that may have been made since the last
+    /// `load` or `save`.
     pub fn load(&mut self) -> Result<()> {
         unsafe { raw::aug_load(self.ptr) };
         self.make_result(())
@@ -256,9 +404,9 @@ impl Augeas {
         let node = CString::new(node)?;
         let path = CString::new(path)?;
 
-        unsafe { raw::aug_text_store(self.ptr, lens.as_ptr(), node.as_ptr(), 
+        unsafe { raw::aug_text_store(self.ptr, lens.as_ptr(), node.as_ptr(),
                                      path.as_ptr()) };
-        
+
         let err = self.get(&err_path)?;
         if let Some(kind) = err {
             return Err(Error::from(kind));
@@ -285,7 +433,7 @@ impl Augeas {
         }
 
         self.make_result(())
-    }   
+    }
 
     pub fn rename(&mut self, src: &str, lbl: &str) -> Result<()> {
         let src = CString::new(src)?;
@@ -353,11 +501,11 @@ impl Augeas {
             return self.make_error()
         }
 
-        let attr = Attr { 
+        let attr = Attr {
             label: ptr_to_string(label),
             value: ptr_to_string(value),
             file_path: ptr_to_string(file_path) };
-        
+
         unsafe { libc::free(file_path as *mut libc::c_void) };
 
         self.make_result(attr)
@@ -367,7 +515,7 @@ impl Augeas {
         let var = CString::new(var)?;
 
         let mut label : *const c_char = ptr::null_mut();
-        
+
         let rc = unsafe { raw::aug_ns_label(self.ptr, var.as_ptr(), i as c_int,
                           &mut label, ptr::null_mut() ) };
         if rc < 0 {
@@ -376,7 +524,7 @@ impl Augeas {
 
         match ptr_to_string(label) {
             Some(label) => Ok(label),
-            None => Err(Error::from(raw::ErrorCode::NoMatch)) 
+            None => Err(Error::from(raw::ErrorCode::NoMatch))
         }
     }
 
@@ -384,7 +532,7 @@ impl Augeas {
         let var = CString::new(var)?;
 
         let mut index : c_int = 0;
-        
+
         unsafe { raw::aug_ns_label(self.ptr, var.as_ptr(), i as c_int,
                  ptr::null_mut(), &mut index ) };
         return self.make_result(index as u32)
@@ -396,7 +544,7 @@ impl Augeas {
         let mut value : *const c_char = ptr::null_mut();
         unsafe { raw::aug_ns_value(self.ptr, var.as_ptr(), i as c_int,
                                    &mut value) };
-        
+
         self.make_result(ptr_to_string(value))
     }
 
@@ -558,7 +706,7 @@ fn span_test() {
     assert_eq!(0..0, span.value);
     assert_eq!(0..32, span.span);
     assert_eq!("tests/test_root/etc/passwd", span.filename.unwrap());
-    
+
     // no span info associated with node
     let span = aug.span("/augeas/load").unwrap();
     assert!(span.is_none());
