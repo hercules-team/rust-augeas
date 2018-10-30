@@ -2,8 +2,8 @@
 
 name = "augeas"
 version = "0.1.0"
-authors = ["panicbit <panicbit.dev@gmail.com>"]
-description = "High level bindings for augeas"
+authors = ["panicbit <panicbit.dev@gmail.com>", "David Lutterkort <lutter@watzmann.net>"]
+description = "Augeas bindings for Rust"
 license = "MIT"
 keywords = ["augeas", "bindings"]
 repository = "https://github.com/panicbit/rust-augeas"
