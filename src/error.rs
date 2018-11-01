@@ -2,7 +2,7 @@ use std::fmt;
 use std::ffi::NulError;
 use ::Augeas;
 use ::util::ptr_to_string;
-use augeas_sys as raw;
+use augeas_sys::*;
 
 #[derive(Clone,PartialEq,Debug)]
 pub enum Error {
@@ -30,16 +30,16 @@ impl fmt::Display for Error {
 
 #[derive(Clone,PartialEq,Eq,Debug,Default)]
 pub struct AugeasError {
-    pub code          : raw::ErrorCode,
+    pub code          : ErrorCode,
     pub message       : Option<String>,
     pub minor_message : Option<String>,
     pub details       : Option<String>
 }
 
 impl AugeasError {
-    pub fn new_no_mem<S: Into<String>>(message: S) -> AugeasError {
+    pub fn new_no_mem(message: impl Into<String>) -> AugeasError {
         AugeasError {
-            code : raw::ErrorCode::NoMem,
+            code : ErrorCode::NoMem,
             message : Some(message.into()),
             .. Default::default()
         }
@@ -55,7 +55,7 @@ impl ::std::error::Error for AugeasError {
     }
 }
 
-fn maybe_write(f: &mut fmt::Formatter, opt : &Option<String>) -> fmt::Result {
+fn maybe_write(f: &mut fmt::Formatter, opt: &Option<String>) -> fmt::Result {
     match *opt {
         Some(ref s) => write!(f, "      {}\n", s),
         None => Ok(())
@@ -76,22 +76,72 @@ impl fmt::Display for AugeasError {
 }
 
 impl From<NulError> for Error {
-    fn from(err : NulError) -> Error {
+    fn from(err: NulError) -> Error {
         Error::Nul(err)
     }
 }
 
 impl <'a> From<&'a Augeas> for Error {
     fn from(aug: &'a Augeas) -> Error {
-        let err = unsafe { raw::aug_error(aug.ptr) };
-        let msg = unsafe { ptr_to_string(raw::aug_error_message(aug.ptr)) };
-        let mmsg = unsafe { ptr_to_string(raw::aug_error_minor_message(aug.ptr)) };
-        let det = unsafe { ptr_to_string(raw::aug_error_details(aug.ptr)) };
+        let err = unsafe { aug_error(aug.ptr) };
+        let err = ErrorCode::from_raw(err as _);
+        let msg = unsafe { ptr_to_string(aug_error_message(aug.ptr)) };
+        let mmsg = unsafe { ptr_to_string(aug_error_minor_message(aug.ptr)) };
+        let det = unsafe { ptr_to_string(aug_error_details(aug.ptr)) };
         Error::Augeas(AugeasError {
-            code : err,
-            message : msg,
-            minor_message : mmsg,
-            details : det
+            code: err,
+            message: msg,
+            minor_message: mmsg,
+            details: det
        })
     }
+}
+
+#[repr(C)]
+#[derive(Copy,Clone,PartialEq,Eq,Debug)]
+pub enum ErrorCode {
+    NoError,
+    NoMem,
+    Internal,
+    PathExpr,
+    NoMatch,
+    ManyMatches,
+    Syntax,
+    NoLens,
+    MultipleTransforms,
+    NoSpan,
+    MoveDescendant,
+    CMDRun,
+    BadArg,
+    Label,
+    CopyDescendant,
+    Unknown
+}
+
+impl ErrorCode {
+    #[allow(non_upper_case_globals)]
+    pub fn from_raw(code: aug_errcode_t) -> ErrorCode {
+        match code {
+            aug_errcode_t_AUG_NOERROR => ErrorCode::NoError,
+            aug_errcode_t_AUG_ENOMEM => ErrorCode::NoMem,
+            aug_errcode_t_AUG_EINTERNAL => ErrorCode::Internal,
+            aug_errcode_t_AUG_EPATHX => ErrorCode::PathExpr,
+            aug_errcode_t_AUG_ENOMATCH => ErrorCode::NoMatch,
+            aug_errcode_t_AUG_EMMATCH => ErrorCode::ManyMatches,
+            aug_errcode_t_AUG_ESYNTAX => ErrorCode::Syntax,
+            aug_errcode_t_AUG_ENOLENS => ErrorCode::NoLens,
+            aug_errcode_t_AUG_EMXFM => ErrorCode::MultipleTransforms,
+            aug_errcode_t_AUG_ENOSPAN => ErrorCode::NoSpan,
+            aug_errcode_t_AUG_EMVDESC => ErrorCode::MoveDescendant,
+            aug_errcode_t_AUG_ECMDRUN => ErrorCode::CMDRun,
+            aug_errcode_t_AUG_EBADARG => ErrorCode::BadArg,
+            aug_errcode_t_AUG_ELABEL => ErrorCode::Label,
+            aug_errcode_t_AUG_ECPDESC => ErrorCode::CopyDescendant,
+            _ => ErrorCode::Unknown,
+        }
+    }
+}
+
+impl Default for ErrorCode {
+    fn default() -> ErrorCode { ErrorCode::NoError }
 }
