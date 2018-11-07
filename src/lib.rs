@@ -55,21 +55,25 @@ impl Augeas {
         let ref path = CString::new(path)?;
         let path = path.as_ptr();
         let mut value: *const c_char = ptr::null_mut();
+
         unsafe { aug_get(self.ptr, path, &mut value) };
+        self.check_error()?;
+
         let value = unsafe { ptr_to_string(value) };
 
-        self.make_result(value)
+        Ok(value)
     }
 
-        pub fn label(&self, path: &str) -> Result<Option<String>> {
+    pub fn label(&self, path: &str) -> Result<Option<String>> {
         let path_c = CString::new(path)?;
-        let mut return_value: *const c_char = ptr::null();
+        let mut value: *const c_char = ptr::null();
 
-        unsafe {
-            aug_label(self.ptr, path_c.as_ptr(), &mut return_value)
-        };
+        unsafe { aug_label(self.ptr, path_c.as_ptr(), &mut value) };
+        self.check_error()?;
 
-        self.make_result(unsafe { ptr_to_string(return_value) })
+        let value = unsafe { ptr_to_string(value) };
+
+        Ok(value)
     }
 
     pub fn matches(&self, path: &str) -> Result<Vec<String>> {
@@ -77,12 +81,9 @@ impl Augeas {
 
         unsafe {
             let mut matches_ptr: *mut *mut c_char = ptr::null_mut();
-
             let nmatches = aug_match(self.ptr, c_path.as_ptr(), &mut matches_ptr);
+            self.check_error()?;
 
-            if nmatches < 0 {
-                return self.make_error()
-            }
             let matches_vec = (0 .. nmatches).map(|i| {
                 let match_ptr: *const c_char = transmute(*matches_ptr.offset(i as isize));
                 let str = ptr_to_string(match_ptr).unwrap();
@@ -98,7 +99,9 @@ impl Augeas {
 
     pub fn save(&mut self) -> Result<()> {
         unsafe { aug_save(self.ptr) };
-        self.make_result(())
+        self.check_error()?;
+
+        Ok(())
     }
 
     pub fn set(&mut self, path: &str, value: &str) -> Result<()> {
@@ -106,24 +109,28 @@ impl Augeas {
         let value_c = CString::new(value.as_bytes())?;
 
         unsafe { aug_set(self.ptr, path_c.as_ptr(), value_c.as_ptr()) };
-        self.make_result(())
-    }
-}
+        self.check_error()?;
 
-impl Augeas {
-    fn make_error<T>(&self) -> Result<T> {
-        Err(Error::from(self))
+        Ok(())
     }
 
-    fn make_result<T>(&self, v : T) -> Result<T> {
+    fn check_error(&self) -> std::result::Result<(), AugeasError> {
+        self.error().map(Err).unwrap_or(Ok(()))
+    }
+
+    fn error(&self) -> Option<AugeasError> {
         let err = unsafe { aug_error(self.ptr) };
-        let err = ErrorCode::from_raw(err as _);
+        let err = ErrorCode::from_raw(err as _)?;
+        let msg = unsafe { ptr_to_string(aug_error_message(self.ptr)) };
+        let mmsg = unsafe { ptr_to_string(aug_error_minor_message(self.ptr)) };
+        let det = unsafe { ptr_to_string(aug_error_details(self.ptr)) };
 
-        if err != ErrorCode::NoError {
-            return self.make_error();
-        }
-
-        Ok(v)
+        Some(AugeasError {
+            code: err,
+            message: msg,
+            minor_message: mmsg,
+            details: det
+       })
     }
 }
 
